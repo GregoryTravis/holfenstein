@@ -50,13 +50,14 @@ goof (Texture t _) = do
   putStrLn $ "YOW " ++ (show pitch)
   let wordPtr :: Ptr Word32
       wordPtr = castPtr ptr
-  let writeWhite off = pokeElemOff wordPtr off 0xffffffff
+  let writeFade (x, y) = let off = y * ((fromIntegral pitch :: Int) `div` 4) + x
+                          in pokeElemOff wordPtr off 0xffffffff
   word32 <- peekElemOff wordPtr 0
   putStrLn $ "GEE " ++ (show word32)
   pokeElemOff wordPtr 0 (17 :: Word32)
   word322 <- peekElemOff wordPtr 0
   putStrLn $ "GEE " ++ (show word322)
-  mapM_ writeWhite [y * ((fromIntegral pitch :: Int) `div` 4) + x
+  mapM_ writeFade [(x, y)
                       | x <- [0..((fromIntegral screenWidth :: Int)-1)]
                       , y <- [0..((fromIntegral screenHeight :: Int)-1)]]
   unlockTexture t
