@@ -1,0 +1,7 @@
+Holfenstein
+misc
+*.o
+*.hi
+todo.txt
+notes.txt
+out
