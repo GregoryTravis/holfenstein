@@ -56,9 +56,9 @@ goof (Texture t _) = do
   pokeElemOff wordPtr 0 (17 :: Word32)
   word322 <- peekElemOff wordPtr 0
   putStrLn $ "GEE " ++ (show word322)
-  mapM_ writeWhite [y * (fromIntegral pitch :: Int) + x
-                      | x <- [0..((fromIntegral pitch :: Int)-1)]
-                      , y <- [0..29]]
+  mapM_ writeWhite [y * ((fromIntegral pitch :: Int) `div` 4) + x
+                      | x <- [0..((fromIntegral screenWidth :: Int)-1)]
+                      , y <- [0..((fromIntegral screenHeight :: Int)-1)]]
   unlockTexture t
   --where writeWhite off = do
     --pokeElemOff wordPtr off 0xffffffff
