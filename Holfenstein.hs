@@ -5,16 +5,19 @@ module Main (main) where
 
 import Prelude hiding (any, mapM_)
 import Control.Monad hiding (mapM_)
+import Data.Bits
 import Data.Foldable hiding (elem)
 import Data.Maybe
 import Data.Word (Word32)
 import Foreign.C.Types
 import Foreign.Ptr
 import Foreign.Storable (peekElemOff, pokeElemOff)
+import Numeric (showHex)
 import SDL.Vect
 import SDL.Video.Renderer (lockTexture, unlockTexture)
 import SDL (($=))
 import qualified SDL
+import System.IO
 
 -- #if !MIN_VERSION_base(4,8,0)
 -- import Control.Applicative
@@ -44,28 +47,26 @@ setAsRenderTarget :: SDL.Renderer -> Maybe Texture -> IO ()
 setAsRenderTarget r Nothing = SDL.rendererRenderTarget r $= Nothing
 setAsRenderTarget r (Just (Texture t _)) = SDL.rendererRenderTarget r $= Just t
 
+colorFade x y =
+  (shift red 24) .|. (shift green 16) .|. 0xff
+  where red = floor $ 255 * ((fromIntegral x) / (fromIntegral screenWidth))
+        green = floor $ 255 * ((fromIntegral y) / (fromIntegral screenHeight))
+
 goof :: Texture -> IO ()
 goof (Texture t _) = do
   (ptr, (CInt pitch)) <- lockTexture t Nothing
-  putStrLn $ "YOW " ++ (show pitch)
   let wordPtr :: Ptr Word32
       wordPtr = castPtr ptr
   let writeFade (x, y) = let off = y * ((fromIntegral pitch :: Int) `div` 4) + x
-                          in pokeElemOff wordPtr off 0xffffffff
-  word32 <- peekElemOff wordPtr 0
-  putStrLn $ "GEE " ++ (show word32)
-  pokeElemOff wordPtr 0 (17 :: Word32)
-  word322 <- peekElemOff wordPtr 0
-  putStrLn $ "GEE " ++ (show word322)
+                          in pokeElemOff wordPtr off (colorFade x y)
   mapM_ writeFade [(x, y)
                       | x <- [0..((fromIntegral screenWidth :: Int)-1)]
                       , y <- [0..((fromIntegral screenHeight :: Int)-1)]]
   unlockTexture t
-  --where writeWhite off = do
-    --pokeElemOff wordPtr off 0xffffffff
 
 main :: IO ()
 main = do
+  hSetBuffering stdout NoBuffering
   SDL.initialize [SDL.InitVideo]
 
   SDL.HintRenderScaleQuality $= SDL.ScaleLinear
@@ -97,6 +98,7 @@ main = do
     screenCenter = P (V2 (screenWidth `div` 2) (screenHeight `div` 2))
 
     loop theta = do
+      --putStrLn $ "LOOP " ++ (show theta)
       events <- map SDL.eventPayload <$> SDL.pollEvents
       let quit = SDL.QuitEvent `elem` events
 
