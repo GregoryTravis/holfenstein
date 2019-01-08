@@ -64,6 +64,75 @@ goof (Texture t _) = do
                       , y <- [0..((fromIntegral screenHeight :: Int)-1)]]
   unlockTexture t
 
+--data V2 = V2 Double Double
+--data V3 = V3 Double Double Double
+
+{-
+-- Transform translate dir
+data Transform = Transform V2 V2
+
+makeTransform s ang = Transform s (cos ang, sin ang)
+invertTransform (Transform s e) = Transform (invertTranslation s) (invertRotation e)
+invertTranslation (V2 x y) = V2 (-x) (-y)
+invertRotation (V2 x y) = 
+
+verticalStrip screenX (eyeX, eyeY) (facingX, facingY) (hitX, hitY) =
+  let eE = ((hitX - eyeX), (hitY - eyeY))
+      projDist = dot eE (facingX, facingY)
+   in projDist
+  where dot (x0, y0) (x1, y1) = (x0 * x1) + (y0 * y1)
+-}
+
+data Vec2 = Vec2 Double Double deriving Show
+
+newtype Angle = Angle Double deriving Show
+data Translation = Translation Vec2 deriving Show
+data Position = Position Vec2 deriving Show
+newtype DirVec = DirVec Vec2 deriving Show
+
+data ATransform = ATransform Angle Translation deriving Show
+data VTransform = VTransform DirVec Translation deriving Show
+data IVTransform = IVTransform DirVec Translation deriving Show
+
+toVTransform :: ATransform -> VTransform
+toVTransform (ATransform ang t) = VTransform (toDirVec ang) t
+toIVTransform (ATransform ang t) = IVTransform (toDirVec ang) t
+
+toDirVec (Angle ang) = DirVec $ Vec2 (cos ang) (sin ang)
+
+invertAT (ATransform (Angle ang) t) = ATransform (Angle (- ang)) (invertT t)
+invertT (Translation (Vec2 x y)) = Translation (Vec2 (-x) (-y))
+
+--transformToView Position DirVec Position
+--transformToView eye
+
+transformPosition (VTransform dir t) (Position v2) =
+  plusTV2 t (times dir v2)
+iTransformPosition (IVTransform dir t) (Position v2) =
+  --times dir $ minusV2T v2 t
+  times dir $ plusTV2 t v2
+times (DirVec (Vec2 dirX dirY)) v2 =
+  plusV2 (timesSV2 dirX v2) (timesSV2 dirY (perpendicular v2))
+-- Rotate pi/2
+perpendicular (Vec2 x y) = Vec2 (- y) x
+plusTV2 (Translation v) v2 = plusV2 v v2
+minusV2T v2 (Translation v) = minusV2 v2 v
+plusV2 (Vec2 x0 y0) (Vec2 x1 y1) = Vec2 (x0 + x1) (y0 + y1)
+minusV2 (Vec2 x0 y0) (Vec2 x1 y1) = Vec2 (x0 - x1) (y0 - y1)
+timesSV2 d (Vec2 x y) = Vec2 (d * x) (d * y)
+
+posToTrans (Position v2) = Translation v2
+
+vroo = do
+  let eye = Position $ Vec2 3 3
+  let hit = Position $ Vec2 6 6
+  let ang = (pi :: Double) / 4.0
+  --let inv = toVTransform $ invertAT $ ATransform (Angle ang) (posToTrans eye)
+  let inv = toIVTransform $ invertAT $ ATransform (Angle ang) (posToTrans eye)
+  let hitInView = iTransformPosition inv hit
+  putStrLn $ show inv
+  putStrLn $ show hitInView
+
 main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
@@ -93,6 +162,7 @@ main = do
 
   targetTexture <- createBlank renderer (V2 screenWidth screenHeight) SDL.TextureAccessStreaming
   goof targetTexture
+  vroo
 
   let
     screenCenter = P (V2 (screenWidth `div` 2) (screenHeight `div` 2))
