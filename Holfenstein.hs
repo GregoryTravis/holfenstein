@@ -10,6 +10,7 @@ import Data.Bits
 import Data.Foldable hiding (elem)
 import Data.List (nub)
 import Data.Maybe
+import Data.Ord
 import Data.Word (Word32)
 import Foreign.C.Types
 import Foreign.Ptr
@@ -93,13 +94,27 @@ worldIsSquare = allSameLength world
 blah = assert worldIsSquare ()
 worldSize = V2 (length (world !! 0)) (length world)
 
-data WallPt = Vert Int Double | Hor Double Int deriving Show
+data WallPt = Ver Int Double | Hor Double Int deriving Show
+
+minBy f a b =
+  let ac = f a
+      bc = f b
+      
+
+castRay :: V2 -> V2 -> Maybe WallPt
+caseRay eye dir =
+  case (castRayHor eye dir, castRayVer eye dir) of
+    (Just horHit, Just verHit) -> Just $ closerOf horHit verHit
+    _ -> Nothing
+  where closerOf horHit verHit =
+          head $ sortBy (comparing closeToEye) [horHit, verHit]
+        closeToEye wpt = wallPtToV2 wpt
 
 --castRay :: V2
 
 vroo = do
   putStrLn $ show $ V2 3.4 4.5
-  putStrLn $ show $ Vert 1 2.3
+  putStrLn $ show $ Ver 1 2.3
   putStrLn $ show world
   return ()
 
