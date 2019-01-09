@@ -4,19 +4,23 @@
 module Main (main) where
 
 import Prelude hiding (any, mapM_)
+import Control.Exception.Base
 import Control.Monad hiding (mapM_)
 import Data.Bits
 import Data.Foldable hiding (elem)
+import Data.List (nub)
 import Data.Maybe
 import Data.Word (Word32)
 import Foreign.C.Types
 import Foreign.Ptr
 import Foreign.Storable (peekElemOff, pokeElemOff)
+import Linear
 import Numeric (showHex)
 import SDL.Vect
 import SDL.Video.Renderer (lockTexture, unlockTexture)
 import SDL (($=))
 import qualified SDL
+import System.Exit
 import System.IO
 
 -- #if !MIN_VERSION_base(4,8,0)
@@ -64,77 +68,46 @@ goof (Texture t _) = do
                       , y <- [0..((fromIntegral screenHeight :: Int)-1)]]
   unlockTexture t
 
---data V2 = V2 Double Double
---data V3 = V3 Double Double Double
+-- World is made of unit cubes
+worldMap :: [[Char]]
+worldMap_ = [
+  "########",
+  "#      #",
+  "#      #",
+  "#      #",
+  "#      #",
+  "########" ]
+worldMap = [
+  "###",
+  "# #",
+  "###"]
 
-{-
--- Transform translate dir
-data Transform = Transform V2 V2
+world = map (\col -> map isWall col) (transpose worldMap)
+  where 
+    isWall x = x == '#'
+    transpose ([]:_) = []
+    transpose xs = (map head xs) : transpose (map tail xs)
 
-makeTransform s ang = Transform s (cos ang, sin ang)
-invertTransform (Transform s e) = Transform (invertTranslation s) (invertRotation e)
-invertTranslation (V2 x y) = V2 (-x) (-y)
-invertRotation (V2 x y) = 
+allSameLength xs = length (nub xs) == 1
+worldIsSquare = allSameLength world
+blah = assert worldIsSquare ()
+worldSize = V2 (length (world !! 0)) (length world)
 
-verticalStrip screenX (eyeX, eyeY) (facingX, facingY) (hitX, hitY) =
-  let eE = ((hitX - eyeX), (hitY - eyeY))
-      projDist = dot eE (facingX, facingY)
-   in projDist
-  where dot (x0, y0) (x1, y1) = (x0 * x1) + (y0 * y1)
--}
+data WallPt = Vert Int Double | Hor Double Int deriving Show
 
-data Vec2 = Vec2 Double Double deriving Show
-
-newtype Angle = Angle Double deriving Show
-data Translation = Translation Vec2 deriving Show
-data Position = Position Vec2 deriving Show
-newtype DirVec = DirVec Vec2 deriving Show
-
-data ATransform = ATransform Angle Translation deriving Show
-data VTransform = VTransform DirVec Translation deriving Show
-data IVTransform = IVTransform DirVec Translation deriving Show
-
-toVTransform :: ATransform -> VTransform
-toVTransform (ATransform ang t) = VTransform (toDirVec ang) t
-toIVTransform (ATransform ang t) = IVTransform (toDirVec ang) t
-
-toDirVec (Angle ang) = DirVec $ Vec2 (cos ang) (sin ang)
-
-invertAT (ATransform (Angle ang) t) = ATransform (Angle (- ang)) (invertT t)
-invertT (Translation (Vec2 x y)) = Translation (Vec2 (-x) (-y))
-
---transformToView Position DirVec Position
---transformToView eye
-
-transformPosition (VTransform dir t) (Position v2) =
-  plusTV2 t (times dir v2)
-iTransformPosition (IVTransform dir t) (Position v2) =
-  --times dir $ minusV2T v2 t
-  times dir $ plusTV2 t v2
-times (DirVec (Vec2 dirX dirY)) v2 =
-  plusV2 (timesSV2 dirX v2) (timesSV2 dirY (perpendicular v2))
--- Rotate pi/2
-perpendicular (Vec2 x y) = Vec2 (- y) x
-plusTV2 (Translation v) v2 = plusV2 v v2
-minusV2T v2 (Translation v) = minusV2 v2 v
-plusV2 (Vec2 x0 y0) (Vec2 x1 y1) = Vec2 (x0 + x1) (y0 + y1)
-minusV2 (Vec2 x0 y0) (Vec2 x1 y1) = Vec2 (x0 - x1) (y0 - y1)
-timesSV2 d (Vec2 x y) = Vec2 (d * x) (d * y)
-
-posToTrans (Position v2) = Translation v2
+--castRay :: V2
 
 vroo = do
-  let eye = Position $ Vec2 3 3
-  let hit = Position $ Vec2 6 6
-  let ang = (pi :: Double) / 4.0
-  --let inv = toVTransform $ invertAT $ ATransform (Angle ang) (posToTrans eye)
-  let inv = toIVTransform $ invertAT $ ATransform (Angle ang) (posToTrans eye)
-  let hitInView = iTransformPosition inv hit
-  putStrLn $ show inv
-  putStrLn $ show hitInView
+  putStrLn $ show $ V2 3.4 4.5
+  putStrLn $ show $ Vert 1 2.3
+  putStrLn $ show world
+  return ()
 
 main :: IO ()
 main = do
+  vroo
+  exitWith ExitSuccess
+
   hSetBuffering stdout NoBuffering
   SDL.initialize [SDL.InitVideo]
 
