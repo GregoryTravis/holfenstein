@@ -103,12 +103,15 @@ allSameLength xs = length (nub xs) == 1
 worldIsSquare = allSameLength world
 blah = assert worldIsSquare ()
 worldSize = V2 (length (world !! 0)) (length world) 
+outsideWorld :: V2 Double -> Bool
+outsideWorld (V2 x y) = case worldSize of (V2 wx wy) -> x < -1 || x > (fromIntegral wx) + 1 || y < -1 || y > (fromIntegral wy) + 1
 
 data WallPt = Ver Int Double | Hor Double Int deriving Show
 wallPtToV2 (Ver x y) = V2 (fromIntegral x) y
 wallPtToV2 (Hor x y) = V2 x (fromIntegral y)
 
-castRay :: V2 Double -> V2 Double -> WallPt
+castRay :: V2 Double -> V2 Double -> Maybe WallPt
+castRay a b | TR.trace ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
 castRay eye@(V2 ex ey) dir@(V2 dx dy) =
   let dummy = assert ((abs dy) < (abs dx)) ()
    in stepRay eye (eye + firstStep) unitStep slope
@@ -121,11 +124,12 @@ castRay eye@(V2 ex ey) dir@(V2 dx dy) =
 
 -- (x1, y1) is always on a vertical grid line; (x0, y0) is the previous one or
 -- the initial eye point.
-stepRay :: V2 Double -> V2 Double -> V2 Double -> Double -> WallPt
-stepRay p0 p1 u s | TR.trace (show "stepRay " ++ (show p0) ++ " " ++ (show p1) ++ " " ++ (show u) ++ (show p1) ++ " " ++ (show s)) False = undefined
+stepRay :: V2 Double -> V2 Double -> V2 Double -> Double -> Maybe WallPt
+stepRay p0 p1 u s | TR.trace (show "stepRay " ++ (show p0) ++ " " ++ (show p1) ++ " " ++ (show u) ++ " " ++ (show s)) False = undefined
 stepRay p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
-  | (floor y0) /= (floor y1) && isHorWall (floor x0) (floor y1) && (abs slope) > 0 = Hor (((fromIntegral (floor y1)) - y0) / slope) (floor y1)
-  | isVerWall (floor x1) (floor y1) = Ver (floor x1) y1
+  | (floor y0) /= (floor y1) && isHorWall (floor x0) (floor y1) && (abs slope) > 0 = Just $ Hor (x0 + (((fromIntegral (floor y1)) - y0) / slope)) (floor y1)
+  | isVerWall (floor x1) (floor y1) = Just $ Ver (floor x1) y1
+  | outsideWorld p0 = Nothing
   | otherwise = stepRay p1 (p1 + unitStep) unitStep slope
 
 {-
@@ -156,7 +160,8 @@ vroo = do
   putStrLn $ show $ V2 3.4 4.5
   putStrLn $ show $ Ver 1 2.3
   putStrLn $ show world
-  putStrLn $ show $ castRay (V2 1.5 1.5) (norm (V2 1.0 0.5))
+  putStrLn $ show $ (signorm (V2 1.0 0.5))
+  putStrLn $ show $ castRay (V2 1.5 1.5) (signorm (V2 1.0 0.5))
   return ()
 
 main :: IO ()
