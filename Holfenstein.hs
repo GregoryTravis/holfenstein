@@ -58,17 +58,23 @@ colorFade x y =
   where red = floor $ 255 * ((fromIntegral x) / (fromIntegral screenWidth))
         green = floor $ 255 * ((fromIntegral y) / (fromIntegral screenHeight))
 
-goof :: Texture -> IO ()
-goof (Texture t _) = do
+withFramebuffer :: Texture -> (Ptr Word32 -> Int -> IO a) -> IO a
+withFramebuffer (Texture t _) f = do
   (ptr, (CInt pitch)) <- lockTexture t Nothing
   let wordPtr :: Ptr Word32
       wordPtr = castPtr ptr
-  let writeFade (x, y) = let off = y * ((fromIntegral pitch :: Int) `div` 4) + x
+  result <- f wordPtr (fromIntegral pitch :: Int)
+  unlockTexture t
+  return result
+
+goof2 :: Ptr Word32 -> Int -> IO ()
+goof2 wordPtr pitch = do
+  let writeFade (x, y) = let off = y * (pitch `div` 4) + x
                           in pokeElemOff wordPtr off (colorFade x y)
   mapM_ writeFade [(x, y)
                       | x <- [0..((fromIntegral screenWidth :: Int)-1)]
                       , y <- [0..((fromIntegral screenHeight :: Int)-1)]]
-  unlockTexture t
+  return ()
 
 -- World is made of unit cubes
 -- Cubes are identified by their least corner coords
@@ -167,7 +173,7 @@ vroo = do
 main :: IO ()
 main = do
   vroo
-  exitWith ExitSuccess
+  --exitWith ExitSuccess
 
   hSetBuffering stdout NoBuffering
   SDL.initialize [SDL.InitVideo]
@@ -195,7 +201,7 @@ main = do
   SDL.rendererDrawColor renderer $= V4 maxBound maxBound maxBound maxBound
 
   targetTexture <- createBlank renderer (V2 screenWidth screenHeight) SDL.TextureAccessStreaming
-  goof targetTexture
+  withFramebuffer targetTexture goof2
   vroo
 
   let
