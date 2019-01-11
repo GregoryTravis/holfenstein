@@ -12,6 +12,7 @@ import Data.List (nub)
 import Data.Maybe
 import Data.Ord
 import Data.Word (Word32)
+import qualified Debug.Trace as TR
 import Foreign.C.Types
 import Foreign.Ptr
 import Foreign.Storable (peekElemOff, pokeElemOff)
@@ -70,6 +71,9 @@ goof (Texture t _) = do
   unlockTexture t
 
 -- World is made of unit cubes
+-- Cubes are identified by their least corner coords
+-- Walls are identified by their least coord along their axis
+-- Remember these are drawn upside down
 worldMap :: [[Char]]
 worldMap_ = [
   "########",
@@ -83,39 +87,76 @@ worldMap = [
   "# #",
   "###"]
 
+world :: [[Bool]]
 world = map (\col -> map isWall col) (transpose worldMap)
   where 
     isWall x = x == '#'
     transpose ([]:_) = []
     transpose xs = (map head xs) : transpose (map tail xs)
 
+isHorWall x y = (isSolid x (y - 1)) /= (isSolid x y)
+isVerWall x y = (isSolid (x - 1) y) /= (isSolid x y)
+isSolid :: Int -> Int -> Bool
+isSolid x y = ((world !! x) !! y)
+
 allSameLength xs = length (nub xs) == 1
 worldIsSquare = allSameLength world
 blah = assert worldIsSquare ()
-worldSize = V2 (length (world !! 0)) (length world)
+worldSize = V2 (length (world !! 0)) (length world) 
 
 data WallPt = Ver Int Double | Hor Double Int deriving Show
+wallPtToV2 (Ver x y) = V2 (fromIntegral x) y
+wallPtToV2 (Hor x y) = V2 x (fromIntegral y)
 
-minBy f a b =
-  let ac = f a
-      bc = f b
-      
+castRay :: V2 Double -> V2 Double -> WallPt
+castRay eye@(V2 ex ey) dir@(V2 dx dy) =
+  let dummy = assert ((abs dy) < (abs dx)) ()
+   in stepRay eye (eye + firstStep) unitStep slope
+  where slope = dy / dx
+        firstStep = V2 firstVerDx firstVerDy
+        firstVerDx | dx > 0 = (fromIntegral (ceiling ex)) - ex
+                   | dx < 0 = (fromIntegral (floor ex)) - ex
+        firstVerDy = firstVerDx * slope
+        unitStep = V2 1.0 slope
 
-castRay :: V2 -> V2 -> Maybe WallPt
-caseRay eye dir =
+-- (x1, y1) is always on a vertical grid line; (x0, y0) is the previous one or
+-- the initial eye point.
+stepRay :: V2 Double -> V2 Double -> V2 Double -> Double -> WallPt
+stepRay p0 p1 u s | TR.trace (show "stepRay " ++ (show p0) ++ " " ++ (show p1) ++ " " ++ (show u) ++ (show p1) ++ " " ++ (show s)) False = undefined
+stepRay p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
+  | (floor y0) /= (floor y1) && isHorWall (floor x0) (floor y1) && (abs slope) > 0 = Hor (((fromIntegral (floor y1)) - y0) / slope) (floor y1)
+  | isVerWall (floor x1) (floor y1) = Ver (floor x1) y1
+  | otherwise = stepRay p1 (p1 + unitStep) unitStep slope
+
+{-
+castRay :: V2 Double -> V2 Double -> Maybe WallPt
+castRay eye dir =
   case (castRayHor eye dir, castRayVer eye dir) of
     (Just horHit, Just verHit) -> Just $ closerOf horHit verHit
+    (Just horHit, _) -> horHit
+    (_, Just verHit) -> verHit
     _ -> Nothing
   where closerOf horHit verHit =
           head $ sortBy (comparing closeToEye) [horHit, verHit]
-        closeToEye wpt = wallPtToV2 wpt
+        closeToEye wpt = distance (wallPtToV2 wwallPtToV2 pt) eye
+
+-- These assume the map is enclosed
+-- Find first intersection with a horizontal wall
+caseRayHor (V2 eyeX eyeY) (V2 dirX 0) = Nothing
+caseRayHor (V2 eyeX eyeY) (V2 dirX dirY) =
+  where firstIntersection = Hor firstX first Y
+        firstX =
+        firstY | dirY > 0 = ceiling eyeY
+               | dirY < 0 = floor eyeY
 
 --castRay :: V2
+-}
 
 vroo = do
   putStrLn $ show $ V2 3.4 4.5
   putStrLn $ show $ Ver 1 2.3
   putStrLn $ show world
+  putStrLn $ show $ castRay (V2 1.5 1.5) (norm (V2 1.0 0.5))
   return ()
 
 main :: IO ()
