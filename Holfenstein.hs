@@ -75,8 +75,8 @@ withFramebuffer (Texture t _) f = do
 
 drawLine :: V2 Int -> V2 Int -> Color -> Ptr Word32 -> Int -> IO ()
 drawLine a@(V2 x0 y0) (V2 x1 y1) color ptr pitch = step fa delta count
-  where delta | isVert = V2 ((signum dx) * (dx / dy)) (signum dy)
-              | otherwise = V2 (signum dx) ((signum dy) * (dy / dx))
+  where delta | isVert = V2 ((signum dx) * (abs (dx / dy))) (signum dy)
+              | otherwise = V2 (signum dx) ((signum dy) * (abs (dy / dx)))
         count | isVert = abs idy
               | otherwise = abs idx
         fa :: V2 Double
@@ -89,7 +89,7 @@ drawLine a@(V2 x0 y0) (V2 x1 y1) color ptr pitch = step fa delta count
         dy :: Double
         dy = fromIntegral idy
         step :: V2 Double -> V2 Double -> Int -> IO ()
-        step a d c | TR.trace ("step " ++ (show a) ++ " " ++ (show d) ++ " " ++ (show c)) False = undefined
+        --step a d c | TR.trace ("step " ++ (show a) ++ " " ++ (show d) ++ " " ++ (show c)) False = undefined
         step a@(V2 x y) delta count
           | count == 0 = return ()
           | otherwise = do
@@ -101,9 +101,12 @@ drawLine a@(V2 x0 y0) (V2 x1 y1) color ptr pitch = step fa delta count
 
 toOffset (V2 x y) pitch = y * (pitch `div` 4) + x
 
+checkBounds (V2 x y) = x >= 0 && y >= 0 && x < screenWidth && y < screenHeight
+
 drawPoint :: V2 Int -> Color -> Ptr Word32 -> Int -> IO ()
 drawPoint v c ptr pitch = do
-  pokeElemOff ptr (toOffset v pitch) (packColor c)
+  assert (checkBounds v)
+    pokeElemOff ptr (toOffset v pitch) (packColor c)
 
 goof2 :: Ptr Word32 -> Int -> IO ()
 goof2 wordPtr pitch = do
@@ -117,6 +120,9 @@ goof2 wordPtr pitch = do
   drawLine (V2 100 100) (V2 150 200) (Color 255 0 0) wordPtr pitch
   drawLine (V2 209 159) (V2 109 109) (Color 0 255 0) wordPtr pitch
   drawLine (V2 159 209) (V2 109 109) (Color 0 255 0) wordPtr pitch
+  let dl (x, y) = drawLine (V2 x y) (V2 320 240) (Color 255 255 255) wordPtr pitch
+   in mapM_ dl ([(x, 200) | x <- [0, 10 .. 639]] ++
+                [(x, 280) | x <- [0, 10 .. 639]])
   return ()
 
 -- World is made of unit cubes
