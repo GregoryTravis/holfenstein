@@ -29,7 +29,7 @@ import System.IO
 -- import Control.Applicative
 -- #endif
 
-screenWidth, screenHeight :: CInt
+screenWidth, screenHeight :: Int
 (screenWidth, screenHeight) = (640, 480)
 
 data Texture = Texture SDL.Texture (V2 CInt)
@@ -53,6 +53,12 @@ setAsRenderTarget :: SDL.Renderer -> Maybe Texture -> IO ()
 setAsRenderTarget r Nothing = SDL.rendererRenderTarget r $= Nothing
 setAsRenderTarget r (Just (Texture t _)) = SDL.rendererRenderTarget r $= Just t
 
+data Color = Color Int Int Int
+
+packColor :: Color -> Word32
+packColor (Color r g b) =
+  fromIntegral $ (shift r 24) .|. (shift g 16) .|. (shift b 8) .|. 0xff
+
 colorFade x y =
   (shift red 24) .|. (shift green 16) .|. 0xff
   where red = floor $ 255 * ((fromIntegral x) / (fromIntegral screenWidth))
@@ -67,6 +73,15 @@ withFramebuffer (Texture t _) f = do
   unlockTexture t
   return result
 
+drawLine :: Ptr Word32 -> V2 Int -> V2 Int -> IO ()
+drawLine = undefined
+
+toOffset (V2 x y) pitch = y * (pitch `div` 4) + x
+
+drawPoint :: V2 Int -> Color -> Ptr Word32 -> Int -> IO ()
+drawPoint v c ptr pitch = do
+  pokeElemOff ptr (toOffset v pitch) (packColor c)
+
 goof2 :: Ptr Word32 -> Int -> IO ()
 goof2 wordPtr pitch = do
   let writeFade (x, y) = let off = y * (pitch `div` 4) + x
@@ -74,6 +89,7 @@ goof2 wordPtr pitch = do
   mapM_ writeFade [(x, y)
                       | x <- [0..((fromIntegral screenWidth :: Int)-1)]
                       , y <- [0..((fromIntegral screenHeight :: Int)-1)]]
+  drawPoint (V2 (screenWidth `div` 2) (screenHeight `div` 2)) (Color 255 255 255) wordPtr pitch
   return ()
 
 -- World is made of unit cubes
@@ -186,7 +202,7 @@ main = do
   window <-
     SDL.createWindow
       "SDL Tutorial"
-      SDL.defaultWindow {SDL.windowInitialSize = V2 screenWidth screenHeight}
+      SDL.defaultWindow {SDL.windowInitialSize = V2 (fromIntegral screenWidth) (fromIntegral screenHeight)}
   SDL.showWindow window
 
   renderer <-
@@ -200,12 +216,12 @@ main = do
 
   SDL.rendererDrawColor renderer $= V4 maxBound maxBound maxBound maxBound
 
-  targetTexture <- createBlank renderer (V2 screenWidth screenHeight) SDL.TextureAccessStreaming
+  targetTexture <- createBlank renderer (V2 (fromIntegral screenWidth) (fromIntegral screenHeight)) SDL.TextureAccessStreaming
   withFramebuffer targetTexture goof2
   vroo
 
   let
-    screenCenter = P (V2 (screenWidth `div` 2) (screenHeight `div` 2))
+    screenCenter = P (V2 (fromIntegral (screenWidth `div` 2)) (fromIntegral (screenHeight `div` 2)))
 
     loop theta = do
       --putStrLn $ "LOOP " ++ (show theta)
