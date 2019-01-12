@@ -73,8 +73,31 @@ withFramebuffer (Texture t _) f = do
   unlockTexture t
   return result
 
-drawLine :: Ptr Word32 -> V2 Int -> V2 Int -> IO ()
-drawLine = undefined
+drawLine :: V2 Int -> V2 Int -> Color -> Ptr Word32 -> Int -> IO ()
+drawLine a@(V2 x0 y0) (V2 x1 y1) color ptr pitch = step fa delta count
+  where delta | isVert = V2 ((signum dx) * (dx / dy)) (signum dy)
+              | otherwise = V2 (signum dx) ((signum dy) * (dy / dx))
+        count | isVert = abs idy
+              | otherwise = abs idx
+        fa :: V2 Double
+        fa = V2 (fromIntegral x0) (fromIntegral y0)
+        isVert = (abs dy) > (abs dx)
+        idx = x1 - x0
+        idy = y1 - y0
+        dx :: Double
+        dx = fromIntegral idx
+        dy :: Double
+        dy = fromIntegral idy
+        step :: V2 Double -> V2 Double -> Int -> IO ()
+        step a d c | TR.trace ("step " ++ (show a) ++ " " ++ (show d) ++ " " ++ (show c)) False = undefined
+        step a@(V2 x y) delta count
+          | count == 0 = return ()
+          | otherwise = do
+              drawPoint (V2 (floor x) (floor y)) color ptr pitch
+              step (a + delta) delta (count - 1)
+  --where (delta, count) = bleh a b
+        --bleh :: V2 Int -> V2 Int -> (V2 Double, Int)
+        --bleh a b | isVert a b -> ((V2 (dx / dy) 1)
 
 toOffset (V2 x y) pitch = y * (pitch `div` 4) + x
 
@@ -90,6 +113,10 @@ goof2 wordPtr pitch = do
                       | x <- [0..((fromIntegral screenWidth :: Int)-1)]
                       , y <- [0..((fromIntegral screenHeight :: Int)-1)]]
   drawPoint (V2 (screenWidth `div` 2) (screenHeight `div` 2)) (Color 255 255 255) wordPtr pitch
+  drawLine (V2 100 100) (V2 200 150) (Color 255 0 0) wordPtr pitch
+  drawLine (V2 100 100) (V2 150 200) (Color 255 0 0) wordPtr pitch
+  drawLine (V2 209 159) (V2 109 109) (Color 0 255 0) wordPtr pitch
+  drawLine (V2 159 209) (V2 109 109) (Color 0 255 0) wordPtr pitch
   return ()
 
 -- World is made of unit cubes
