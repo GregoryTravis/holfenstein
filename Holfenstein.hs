@@ -140,7 +140,7 @@ goof2 wordPtr pitch = do
 goof3 theta wordPtr pitch = do
   let dl' (V2 x y) = drawLine (V2 x y) (V2 320 240) (Color 128 255 255) wordPtr pitch
       step = 10
-      startAng = toRad $ fromIntegral $ theta `mod` step
+      startAng = toRad $ fromIntegral $ (floor ((fromIntegral theta) / 10.0)) `mod` step
    in mapM_ dl' [p + (V2 320 240) | p <- circlePoints 100 startAng (toRad step)]
   return ()
 
@@ -269,6 +269,7 @@ main = do
   SDL.rendererDrawColor renderer $= V4 maxBound maxBound maxBound maxBound
 
   targetTexture <- createBlank renderer (V2 (fromIntegral screenWidth) (fromIntegral screenHeight)) SDL.TextureAccessStreaming
+  withFramebuffer targetTexture goof2
   vroo
 
   let
@@ -276,7 +277,6 @@ main = do
 
     loop theta = do
       --putStrLn $ "LOOP " ++ (show theta)
-      withFramebuffer targetTexture goof2
       withFramebuffer targetTexture $ goof3 theta
       events <- map SDL.eventPayload <$> SDL.pollEvents
       let quit = SDL.QuitEvent `elem` events
