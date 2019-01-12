@@ -25,6 +25,8 @@ import qualified SDL
 import System.Exit
 import System.IO
 
+import Util
+
 -- #if !MIN_VERSION_base(4,8,0)
 -- import Control.Applicative
 -- #endif
@@ -105,8 +107,16 @@ checkBounds (V2 x y) = x >= 0 && y >= 0 && x < screenWidth && y < screenHeight
 
 drawPoint :: V2 Int -> Color -> Ptr Word32 -> Int -> IO ()
 drawPoint v c ptr pitch = do
-  assert (checkBounds v)
+  assertM (v, ptr, pitch) (checkBounds v)
     pokeElemOff ptr (toOffset v pitch) (packColor c)
+
+toRad degrees = 2 * pi * ((fromIntegral degrees) / 360.0)
+
+whup :: V2 Double -> V2 Int
+whup (V2 x y) = V2 (floor x) (floor y)
+
+circlePoints radius step = map cp [0.0, step .. pi * 2]
+  where cp ang = whup $ (V2 (cos ang) (sin ang)) * radius
 
 goof2 :: Ptr Word32 -> Int -> IO ()
 goof2 wordPtr pitch = do
@@ -123,6 +133,8 @@ goof2 wordPtr pitch = do
   let dl (x, y) = drawLine (V2 x y) (V2 320 240) (Color 255 255 255) wordPtr pitch
    in mapM_ dl ([(x, 200) | x <- [0, 10 .. 639]] ++
                 [(x, 280) | x <- [0, 10 .. 639]])
+  let dl' (V2 x y) = drawLine (V2 x y) (V2 320 240) (Color 128 255 255) wordPtr pitch
+   in mapM_ dl' [p + (V2 320 240) | p <- (circlePoints 100 (toRad 10))]
   return ()
 
 -- World is made of unit cubes
