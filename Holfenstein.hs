@@ -115,8 +115,10 @@ toRad degrees = 2 * pi * ((fromIntegral degrees) / 360.0)
 whup :: V2 Double -> V2 Int
 whup (V2 x y) = V2 (floor x) (floor y)
 
-circlePoints radius step = map cp [0.0, step .. pi * 2]
-  where cp ang = whup $ (V2 (cos ang) (sin ang)) * radius
+circlePoints :: Double -> Double -> Double -> [V2 Int]
+--circlePoints r a s | TR.trace (show ("cp", r, a, s)) False = undefined
+circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
+  where cp ang = whup $ V2 ((cos ang) * radius) ((sin ang) * radius)
 
 goof2 :: Ptr Word32 -> Int -> IO ()
 goof2 wordPtr pitch = do
@@ -133,8 +135,13 @@ goof2 wordPtr pitch = do
   let dl (x, y) = drawLine (V2 x y) (V2 320 240) (Color 255 255 255) wordPtr pitch
    in mapM_ dl ([(x, 200) | x <- [0, 10 .. 639]] ++
                 [(x, 280) | x <- [0, 10 .. 639]])
+  return ()
+
+goof3 theta wordPtr pitch = do
   let dl' (V2 x y) = drawLine (V2 x y) (V2 320 240) (Color 128 255 255) wordPtr pitch
-   in mapM_ dl' [p + (V2 320 240) | p <- (circlePoints 100 (toRad 10))]
+      step = 10
+      startAng = toRad $ fromIntegral $ theta `mod` step
+   in mapM_ dl' [p + (V2 320 240) | p <- circlePoints 100 startAng (toRad step)]
   return ()
 
 -- World is made of unit cubes
@@ -262,7 +269,6 @@ main = do
   SDL.rendererDrawColor renderer $= V4 maxBound maxBound maxBound maxBound
 
   targetTexture <- createBlank renderer (V2 (fromIntegral screenWidth) (fromIntegral screenHeight)) SDL.TextureAccessStreaming
-  withFramebuffer targetTexture goof2
   vroo
 
   let
@@ -270,6 +276,8 @@ main = do
 
     loop theta = do
       --putStrLn $ "LOOP " ++ (show theta)
+      withFramebuffer targetTexture goof2
+      withFramebuffer targetTexture $ goof3 theta
       events <- map SDL.eventPayload <$> SDL.pollEvents
       let quit = SDL.QuitEvent `elem` events
 
