@@ -76,7 +76,7 @@ withFramebuffer (Texture t _) f = do
   unlockTexture t
   return result
 
-drawLine :: Line -> Color -> Ptr Word32 -> Int -> IO ()
+drawLine :: Line Int -> Color -> Ptr Word32 -> Int -> IO ()
 drawLine (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
   where delta | isVert = V2 ((signum dx) * (abs (dx / dy))) (signum dy)
               | otherwise = V2 (signum dx) ((signum dy) * (abs (dy / dx)))
@@ -102,10 +102,14 @@ drawLine (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
         --bleh :: V2 Int -> V2 Int -> (V2 Double, Int)
         --bleh a b | isVert a b -> ((V2 (dx / dy) 1)
 
-drawLines :: [Line] -> Ptr Word32 -> Int -> IO ()
+drawLines :: [Line Int] -> Ptr Word32 -> Int -> IO ()
 drawLines lines ptr pitch =
   let dl line = drawLine line white ptr pitch
    in mapM_ dl lines
+
+boxAround :: V2 Double -> [Line Double]
+boxAround center = box (center - boxOffset) (center + boxOffset)
+  where boxOffset = V2 0.05 0.05
 
 toOffset (V2 x y) pitch = y * (pitch `div` 4) + x
 
@@ -150,11 +154,18 @@ goof3 theta wordPtr pitch = do
    in mapM_ dl' [p + (V2 320 240) | p <- circlePoints 100 startAng (toRad step)]
   return ()
 
-data Line = Line (V2 Int) (V2 Int) deriving Show
+data Line a = Line (V2 a) (V2 a) deriving Show
 scale s (Line a b) = Line (s * a) (s * b)
 translate v (Line a b) = Line (v + a) (v + b)
 scaleLines s lines = map (scale s) lines
 translateLines v lines = map (translate v) lines
+
+box :: V2 a -> V2 a -> [Line a]
+box (V2 x0 y0) (V2 x1 y1) = [Line a b, Line b c, Line c d, Line d a]
+  where a = V2 x0 y0
+        b = V2 x1 y0
+        c = V2 x1 y1
+        d = V2 x0 y1
 
 -- World is made of unit cubes
 -- Cubes are identified by their least corner coords
@@ -214,7 +225,7 @@ wallPtToV2 (Ver x y) = V2 (fromIntegral x) y
 wallPtToV2 (Hor x y) = V2 x (fromIntegral y)
 
 castRay :: V2 Double -> V2 Double -> Maybe WallPt
-castRay a b | TR.trace ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
+--castRay a b | TR.trace ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
 castRay eye@(V2 ex ey) dir@(V2 dx dy) =
   let dummy = assert ((abs dy) < (abs dx)) ()
    in stepRay eye (eye + firstStep) unitStep slope
@@ -228,39 +239,36 @@ castRay eye@(V2 ex ey) dir@(V2 dx dy) =
 -- (x1, y1) is always on a vertical grid line; (x0, y0) is the previous one or
 -- the initial eye point.
 stepRay :: V2 Double -> V2 Double -> V2 Double -> Double -> Maybe WallPt
-stepRay p0 p1 u s | TR.trace (show "stepRay " ++ (show p0) ++ " " ++ (show p1) ++ " " ++ (show u) ++ " " ++ (show s)) False = undefined
+--stepRay p0 p1 u s | TR.trace (show "stepRay " ++ (show p0) ++ " " ++ (show p1) ++ " " ++ (show u) ++ " " ++ (show s)) False = undefined
 stepRay p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
   | (floor y0) /= (floor y1) && isHorWall (floor x0) (floor y1) && (abs slope) > 0 = Just $ Hor (x0 + (((fromIntegral (floor y1)) - y0) / slope)) (floor y1)
   | isVerWall (floor x1) (floor y1) = Just $ Ver (floor x1) y1
   | outsideWorldF p0 = Nothing
   | otherwise = stepRay p1 (p1 + unitStep) unitStep slope
 
-{-
-castRay :: V2 Double -> V2 Double -> Maybe WallPt
-castRay eye dir =
-  case (castRayHor eye dir, castRayVer eye dir) of
-    (Just horHit, Just verHit) -> Just $ closerOf horHit verHit
-    (Just horHit, _) -> horHit
-    (_, Just verHit) -> verHit
-    _ -> Nothing
-  where closerOf horHit verHit =
-          head $ sortBy (comparing closeToEye) [horHit, verHit]
-        closeToEye wpt = distance (wallPtToV2 wwallPtToV2 pt) eye
-
--- These assume the map is enclosed
--- Find first intersection with a horizontal wall
-caseRayHor (V2 eyeX eyeY) (V2 dirX 0) = Nothing
-caseRayHor (V2 eyeX eyeY) (V2 dirX dirY) =
-  where firstIntersection = Hor firstX first Y
-        firstX =
-        firstY | dirY > 0 = ceiling eyeY
-               | dirY < 0 = floor eyeY
-
---castRay :: V2
--}
+forDisplay :: Num a => [Line a] -> [Line a]
+forDisplay lines = 
+  translateLines (V2 100 100) (scaleLines 50 lines)
+forDisplayF :: [Line Double] -> [Line Int]
+forDisplayF lines = map floorL (forDisplay lines)
+  where floorL (Line a b) = Line (floorV a) (floorV b)
+        floorV (V2 x y) = V2 (floor x) (floor y)
 
 drawMap t = withFramebuffer t (drawLines map)
-  where map = translateLines (V2 100 100) (scaleLines 50 allWalls)
+  where map = forDisplay allWalls -- translateLines (V2 100 100) (scaleLines 50 allWalls)
+
+thing t = withFramebuffer t foo
+  where foo ptr pitch = do
+          let eye = V2 1.5 1.5
+          let dir = V2 1.0 0.5
+          let hit = castRay eye (signorm dir)
+          drawLines (forDisplayF (boxAround eye)) ptr pitch
+          drawLines (forDisplayF [(Line eye (eye + dir))]) ptr pitch
+          case hit of
+            Just hit -> drawLines (forDisplayF (boxAround (wallPtToV2 hit))) ptr pitch
+            Nothing -> return ()
+          putStrLn $ show hit
+          return ()
 
 vroo = do
   putStrLn $ show $ V2 3.4 4.5
@@ -268,7 +276,6 @@ vroo = do
   putStrLn $ show $ Ver 1 2.3
   putStrLn $ show world
   putStrLn $ show $ (signorm (V2 1.0 0.5))
-  putStrLn $ show $ castRay (V2 1.5 1.5) (signorm (V2 1.0 0.5))
   return ()
 
 main :: IO ()
@@ -312,6 +319,7 @@ main = do
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture $ goof3 theta
       drawMap targetTexture
+      thing targetTexture
       events <- map SDL.eventPayload <$> SDL.pollEvents
       let quit = SDL.QuitEvent `elem` events
 
