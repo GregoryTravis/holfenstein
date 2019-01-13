@@ -161,18 +161,18 @@ translateLines v lines = map (translate v) lines
 -- Walls are identified by their least coord along their axis
 -- Remember these are drawn upside down
 worldMap :: [[Char]]
-worldMap_ = [
+worldMap = [
   "########",
-  "#      #",
-  "#      #",
-  "#      #",
-  "#      #",
+  "#    # #",
+  "#    # #",
+  "# #    #",
+  "# #    #",
   "########" ]
 worldMap__ = [
   "###",
   "  #",
   "###"]
-worldMap = [
+worldMap_ = [
   "####",
   "#  #",
   "#  #",
@@ -188,7 +188,7 @@ world = map (\col -> map isWall col) (transpose worldMap)
 allSameLength xs = length (nub xs) == 1
 worldIsSquare = allSameLength world
 blah = assert worldIsSquare ()
-worldSize = V2 (length (world !! 0)) (length world) 
+worldSize = V2 (length world) (length (world !! 0))
 outsideWorld :: Int -> Int -> Bool
 outsideWorld x y = x < 0 || y < 0 || x >= w || y >= h
   where V2 w h = worldSize
@@ -198,6 +198,7 @@ outsideWorldF (V2 x y) = case worldSize of (V2 wx wy) -> x < 0 || x >= (fromInte
 isHorWall x y = (isSolid x (y - 1)) /= (isSolid x y)
 isVerWall x y = (isSolid (x - 1) y) /= (isSolid x y)
 isSolid :: Int -> Int -> Bool
+--isSolid x y | TR.trace (show ("iS", x, y, (length world), worldSize, (outsideWorld x y))) False = undefined
 isSolid x y
   | outsideWorld x y = False
   | otherwise = ((world !! x) !! y)
