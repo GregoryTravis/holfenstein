@@ -257,10 +257,9 @@ forDisplayF lines = map floorL (forDisplay lines)
 drawMap t = withFramebuffer t (drawLines map)
   where map = forDisplay allWalls -- translateLines (V2 100 100) (scaleLines 50 allWalls)
 
-thing t = withFramebuffer t castAndShow
-  where castAndShow ptr pitch = do
-          let eye = V2 1.5 1.5
-          let dir = V2 1.0 0.5
+--thing t = withFramebuffer t $ castAndShow (V2 1.5 1.5) (V2 1.0 0.5)
+thing t = withFramebuffer t $ castAndShowL (V2 1.5 1.5) dirs
+  where castAndShow eye dir ptr pitch = do
           let hit = castRay eye (signorm dir)
           drawLines (forDisplayF (boxAround eye)) ptr pitch
           drawLines (forDisplayF [(Line eye (eye + dir))]) ptr pitch
@@ -269,6 +268,8 @@ thing t = withFramebuffer t castAndShow
             Nothing -> return ()
           putStrLn $ show hit
           return hit
+        castAndShowL eye dirs ptr pitch = mapM_ (\dir -> castAndShow eye dir ptr pitch) dirs
+        dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
 
 vroo = do
   putStrLn $ show $ V2 3.4 4.5
