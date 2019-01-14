@@ -228,11 +228,19 @@ allWalls world = [horToLine x y | x <- [0..w], y <- [0..h], isHorWall world x y]
 data WallPt = Ver Int Double | Hor Double Int deriving Show
 wallPtToV2 (Ver x y) = V2 (fromIntegral x) y
 wallPtToV2 (Hor x y) = V2 x (fromIntegral y)
+transposeHit (Hor x y) = Ver y x
+transposeHit (Ver x y) = Hor y x
+transposeMaybeHit (Just hit) = Just $ transposeHit hit
+transposeMaybeHit Nothing = Nothing
+
+transposeV2 (V2 x y) = V2 y x
 
 castRay :: World -> V2 Double -> V2 Double -> Maybe WallPt
 castRay w a b | TR.trace ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
 castRay world eye@(V2 ex ey) dir@(V2 dx dy)
   | (abs dy) < (abs dx) = stepRay world eye (eye + firstStep) unitStep slope
+  -- This is a terribly egregious hack
+  | otherwise = transposeMaybeHit (castRay worldTransposed (transposeV2 eye) (transposeV2 dir))
   where slope = dy / dx
         firstStep = V2 firstVerDx firstVerDy
         firstVerDx | dx > 0 = (fromIntegral (ceiling ex)) - ex
@@ -275,8 +283,8 @@ thing t = withFramebuffer t $ castAndShowL (V2 1.5 1.5) dirs
           putStrLn $ show (hit, dir)
           return hit
         castAndShowL eye dirs ptr pitch = mapM_ (\dir -> castAndShow eye dir ptr pitch) dirs
-        dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
-        --dirs = circlePointsF 1.0 0 (pi / 64)
+        --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
+        dirs = circlePointsF 1.0 0 (pi / 64)
         --dirs = [V2 9.801714032956077e-2 0.9951847266721968, V2 (-9.801714032956077e-2) 0.9951847266721968]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
