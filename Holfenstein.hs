@@ -190,46 +190,49 @@ worldMap_ = [
   "#  #",
   "## #"]
 
-world :: [[Bool]]
-world = map (\col -> map isWall col) (transpose worldMap)
+transposeAA ([]:_) = []
+transposeAA xs = (map head xs) : transposeAA (map tail xs)
+
+type World = [[Bool]]
+
+world :: World
+world = map (\col -> map isWall col) (transposeAA worldMap)
   where 
     isWall x = x == '#'
-    transpose ([]:_) = []
-    transpose xs = (map head xs) : transpose (map tail xs)
+worldTransposed = transposeAA world
 
-allSameLength xs = length (nub xs) == 1
+allSameLength xs = length (nub (map length xs)) == 1
 worldIsSquare = allSameLength world
 blah = assert worldIsSquare ()
-worldSize = V2 (length world) (length (world !! 0))
-outsideWorld :: Int -> Int -> Bool
-outsideWorld x y = x < 0 || y < 0 || x >= w || y >= h
-  where V2 w h = worldSize
-outsideWorldF :: V2 Double -> Bool
-outsideWorldF (V2 x y) = case worldSize of (V2 wx wy) -> x < 0 || x >= (fromIntegral wx) + 1 || y < -1 || y > (fromIntegral wy) + 1
+worldSize world = V2 (length world) (length (world !! 0))
+outsideWorld :: World -> Int -> Int -> Bool
+outsideWorld world x y = x < 0 || y < 0 || x >= w || y >= h
+  where V2 w h = worldSize world
+outsideWorldF :: World -> V2 Double -> Bool
+outsideWorldF world (V2 x y) = case worldSize world of (V2 wx wy) -> x < 0 || x >= (fromIntegral wx) + 1 || y < -1 || y > (fromIntegral wy) + 1
 
-isHorWall x y = (isSolid x (y - 1)) /= (isSolid x y)
-isVerWall x y = (isSolid (x - 1) y) /= (isSolid x y)
-isSolid :: Int -> Int -> Bool
+isHorWall world x y = (isSolid world x (y - 1)) /= (isSolid world x y)
+isVerWall world x y = (isSolid world (x - 1) y) /= (isSolid world x y)
+isSolid :: World -> Int -> Int -> Bool
 --isSolid x y | TR.trace (show ("iS", x, y, (length world), worldSize, (outsideWorld x y))) False = undefined
-isSolid x y
-  | outsideWorld x y = False
+isSolid world x y
+  | outsideWorld world x y = False
   | otherwise = ((world !! x) !! y)
 
 horToLine x y = Line (V2 x y) (V2 (x + 1) y)
 verToLine x y = Line (V2 x y) (V2 x (y + 1))
 
-allWalls = [horToLine x y | x <- [0..w], y <- [0..h], isHorWall x y] ++ [verToLine x y | x <- [0..w], y <- [0..h], isVerWall x y]
-  where V2 w h = worldSize
+allWalls world = [horToLine x y | x <- [0..w], y <- [0..h], isHorWall world x y] ++ [verToLine x y | x <- [0..w], y <- [0..h], isVerWall world x y]
+  where V2 w h = worldSize world
 
 data WallPt = Ver Int Double | Hor Double Int deriving Show
 wallPtToV2 (Ver x y) = V2 (fromIntegral x) y
 wallPtToV2 (Hor x y) = V2 x (fromIntegral y)
 
-castRay :: V2 Double -> V2 Double -> Maybe WallPt
-castRay a b | TR.trace ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
-castRay eye@(V2 ex ey) dir@(V2 dx dy) =
-  let dummy = assert ((abs dy) < (abs dx)) ()
-   in stepRay eye (eye + firstStep) unitStep slope
+castRay :: World -> V2 Double -> V2 Double -> Maybe WallPt
+castRay w a b | TR.trace ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
+castRay world eye@(V2 ex ey) dir@(V2 dx dy)
+  | (abs dy) < (abs dx) = stepRay world eye (eye + firstStep) unitStep slope
   where slope = dy / dx
         firstStep = V2 firstVerDx firstVerDy
         firstVerDx | dx > 0 = (fromIntegral (ceiling ex)) - ex
@@ -239,13 +242,13 @@ castRay eye@(V2 ex ey) dir@(V2 dx dy) =
 
 -- (x1, y1) is always on a vertical grid line; (x0, y0) is the previous one or
 -- the initial eye point.
-stepRay :: V2 Double -> V2 Double -> V2 Double -> Double -> Maybe WallPt
-stepRay p0 p1 u s | TR.trace (show "stepRay " ++ (show p0) ++ " " ++ (show p1) ++ " " ++ (show u) ++ " " ++ (show s)) False = undefined
-stepRay p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
-  | (floor y0) /= (floor y1) && isHorWall (floor x0) (floor (max y0 y1)) && (abs slope) > 0 = Just $ Hor (x0 + (((fromIntegral (floor (max y0 y1))) - y0) / slope)) (floor (max y0 y1))
-  | isVerWall (floor x1) (floor y1) = Just $ Ver (floor x1) y1
-  | outsideWorldF p0 = Nothing
-  | otherwise = stepRay p1 (p1 + unitStep) unitStep slope
+stepRay :: World -> V2 Double -> V2 Double -> V2 Double -> Double -> Maybe WallPt
+stepRay w p0 p1 u s | TR.trace (show "stepRay " ++ (show p0) ++ " " ++ (show p1) ++ " " ++ (show u) ++ " " ++ (show s)) False = undefined
+stepRay world p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
+  | (floor y0) /= (floor y1) && isHorWall world (floor x0) (floor (max y0 y1)) && (abs slope) > 0 = Just $ Hor (x0 + (((fromIntegral (floor (max y0 y1))) - y0) / slope)) (floor (max y0 y1))
+  | isVerWall world (floor x1) (floor y1) = Just $ Ver (floor x1) y1
+  | outsideWorldF world p0 = Nothing
+  | otherwise = stepRay world p1 (p1 + unitStep) unitStep slope
 
 forDisplay :: Num a => [Line a] -> [Line a]
 forDisplay lines = 
@@ -256,12 +259,12 @@ forDisplayF lines = map floorL (forDisplay lines)
         floorV (V2 x y) = V2 (floor x) (floor y)
 
 drawMap t = withFramebuffer t (drawLines map)
-  where map = forDisplay allWalls -- translateLines (V2 100 100) (scaleLines 50 allWalls)
+  where map = forDisplay $ allWalls world -- translateLines (V2 100 100) (scaleLines 50 allWalls)
 
 --thing t = withFramebuffer t $ castAndShow (V2 1.5 1.5) (V2 1.0 0.5)
 thing t = withFramebuffer t $ castAndShowL (V2 1.5 1.5) dirs
   where castAndShow eye dir ptr pitch = do
-          let hit = castRay eye (signorm dir)
+          let hit = castRay world eye (signorm dir)
           drawLines (forDisplayF (boxAround eye)) ptr pitch
           --drawLines (forDisplayF [(Line eye (eye + dir))]) ptr pitch
           case hit of
@@ -272,8 +275,9 @@ thing t = withFramebuffer t $ castAndShowL (V2 1.5 1.5) dirs
           putStrLn $ show (hit, dir)
           return hit
         castAndShowL eye dirs ptr pitch = mapM_ (\dir -> castAndShow eye dir ptr pitch) dirs
-        --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
-        dirs = circlePointsF 1.0 0 (pi / 64)
+        dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
+        --dirs = circlePointsF 1.0 0 (pi / 64)
+        --dirs = [V2 9.801714032956077e-2 0.9951847266721968, V2 (-9.801714032956077e-2) 0.9951847266721968]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
 vroo = do
@@ -286,6 +290,8 @@ vroo = do
 
 main :: IO ()
 main = do
+  putStrLn $ show (map length world, nub (map length world))
+  putStrLn $ show blah
   vroo
   --exitWith ExitSuccess
 
