@@ -236,7 +236,7 @@ transposeMaybeHit Nothing = Nothing
 transposeV2 (V2 x y) = V2 y x
 
 castRay :: World -> V2 Double -> V2 Double -> Maybe WallPt
-castRay w a b | TR.trace ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
+--castRay w a b | TR.trace ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
 castRay world eye@(V2 ex ey) dir@(V2 dx dy)
   | (abs dy) < (abs dx) = stepRay world eye (eye + firstStep) unitStep slope
   -- This is a terribly egregious hack
@@ -251,7 +251,7 @@ castRay world eye@(V2 ex ey) dir@(V2 dx dy)
 -- (x1, y1) is always on a vertical grid line; (x0, y0) is the previous one or
 -- the initial eye point.
 stepRay :: World -> V2 Double -> V2 Double -> V2 Double -> Double -> Maybe WallPt
-stepRay w p0 p1 u s | TR.trace (show "stepRay " ++ (show p0) ++ " " ++ (show p1) ++ " " ++ (show u) ++ " " ++ (show s)) False = undefined
+--stepRay w p0 p1 u s | TR.trace (show "stepRay " ++ (show p0) ++ " " ++ (show p1) ++ " " ++ (show u) ++ " " ++ (show s)) False = undefined
 stepRay world p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
   | (floor y0) /= (floor y1) && isHorWall world (floor x0) (floor (max y0 y1)) && (abs slope) > 0 = Just $ Hor (x0 + (((fromIntegral (floor (max y0 y1))) - y0) / slope)) (floor (max y0 y1))
   | isVerWall world (floor x1) (floor y1) = Just $ Ver (floor x1) y1
@@ -270,7 +270,7 @@ drawMap t = withFramebuffer t (drawLines map)
   where map = forDisplay $ allWalls world -- translateLines (V2 100 100) (scaleLines 50 allWalls)
 
 --thing t = withFramebuffer t $ castAndShow (V2 1.5 1.5) (V2 1.0 0.5)
-thing t = withFramebuffer t $ castAndShowL (V2 1.5 1.5) dirs
+thing eye t = withFramebuffer t $ castAndShowL eye dirs
   where castAndShow eye dir ptr pitch = do
           let hit = castRay world eye (signorm dir)
           drawLines (forDisplayF (boxAround eye)) ptr pitch
@@ -280,7 +280,7 @@ thing t = withFramebuffer t $ castAndShowL (V2 1.5 1.5) dirs
               drawLines (forDisplayF (boxAround (wallPtToV2 hit))) ptr pitch
               drawLines (forDisplayF [(Line eye (wallPtToV2 hit))]) ptr pitch
             Nothing -> return ()
-          putStrLn $ show (hit, dir)
+          --putStrLn $ show (hit, dir)
           return hit
         castAndShowL eye dirs ptr pitch = mapM_ (\dir -> castAndShow eye dir ptr pitch) dirs
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
@@ -329,7 +329,6 @@ main = do
   SDL.rendererDrawColor renderer $= V4 maxBound maxBound maxBound maxBound
 
   targetTexture <- createBlank renderer (V2 (fromIntegral screenWidth) (fromIntegral screenHeight)) SDL.TextureAccessStreaming
-  --withFramebuffer targetTexture goof2
   vroo
 
   let
@@ -338,8 +337,10 @@ main = do
     loop theta = do
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture $ goof3 theta
+      withFramebuffer targetTexture goof2
       drawMap targetTexture
-      thing targetTexture
+      let eye = (V2 1.5 1.5) + ((V2 2.0 2.0) * ((fromIntegral theta) / 360.0))
+      thing eye targetTexture
       events <- map SDL.eventPayload <$> SDL.pollEvents
       let quit = SDL.QuitEvent `elem` events
 
