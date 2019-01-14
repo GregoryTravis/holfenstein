@@ -125,10 +125,11 @@ toRad degrees = 2 * pi * ((fromIntegral degrees) / 360.0)
 whup :: V2 Double -> V2 Int
 whup (V2 x y) = V2 (floor x) (floor y)
 
-circlePoints :: Double -> Double -> Double -> [V2 Int]
+circlePointsF :: Double -> Double -> Double -> [V2 Double]
 --circlePoints r a s | TR.trace (show ("cp", r, a, s)) False = undefined
-circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
-  where cp ang = whup $ V2 ((cos ang) * radius) ((sin ang) * radius)
+circlePointsF radius startAng step = map cp [startAng, startAng + step .. pi * 2]
+  where cp ang = V2 ((cos ang) * radius) ((sin ang) * radius)
+circlePoints r sA s = map whup $ circlePointsF r sA s
 
 goof2 :: Ptr Word32 -> Int -> IO ()
 goof2 wordPtr pitch = do
@@ -262,14 +263,18 @@ thing t = withFramebuffer t $ castAndShowL (V2 1.5 1.5) dirs
   where castAndShow eye dir ptr pitch = do
           let hit = castRay eye (signorm dir)
           drawLines (forDisplayF (boxAround eye)) ptr pitch
-          drawLines (forDisplayF [(Line eye (eye + dir))]) ptr pitch
+          --drawLines (forDisplayF [(Line eye (eye + dir))]) ptr pitch
           case hit of
-            Just hit -> drawLines (forDisplayF (boxAround (wallPtToV2 hit))) ptr pitch
+            Just hit -> do
+              drawLines (forDisplayF (boxAround (wallPtToV2 hit))) ptr pitch
+              drawLines (forDisplayF [(Line eye (wallPtToV2 hit))]) ptr pitch
             Nothing -> return ()
-          putStrLn $ show hit
+          putStrLn $ show (hit, dir)
           return hit
         castAndShowL eye dirs ptr pitch = mapM_ (\dir -> castAndShow eye dir ptr pitch) dirs
-        dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
+        --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
+        dirs = circlePointsF 1.0 0 (pi / 64)
+--circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
 vroo = do
   putStrLn $ show $ V2 3.4 4.5
