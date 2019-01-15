@@ -318,6 +318,11 @@ getCursorPos events = case (filter isMouseMotionEvent events) of [] -> Nothing
         isMouseMotionEvent _ = False
 screenToWorld (x, y) = (toWorldCoordinate x, toWorldCoordinate y)
 
+--thang :: V2 Double -> V2 Double -> IO ()
+thang eye dir t = withFramebuffer t $ thung eye dir
+  where thung eye dir ptr pitch = do putStrLn $ show ("thung", eye, dir)
+                                     return ()
+
 main :: IO ()
 main = do
   putStrLn $ show (map length world, nub (map length world))
@@ -351,12 +356,12 @@ main = do
   SDL.rendererDrawColor renderer $= V4 maxBound maxBound maxBound maxBound
 
   targetTexture <- createBlank renderer (V2 (fromIntegral screenWidth) (fromIntegral screenHeight)) SDL.TextureAccessStreaming
-  vroo
+  --vroo
 
   let
     screenCenter = P (V2 (fromIntegral (screenWidth `div` 2)) (fromIntegral (screenHeight `div` 2)))
 
-    loop theta prevEye = do
+    loop theta prevEye prevAng = do
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture $ goof3 theta
       --withFramebuffer targetTexture goof2
@@ -371,8 +376,10 @@ main = do
       let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then prevEye else (V2 x y))
                                             Nothing -> prevEye
 
-      putStrLn $ show $ eye
+      --putStrLn $ show $ eye
       thing eye targetTexture
+      let ang = prevAng
+      thang eye ang targetTexture
 
 {-
       setAsRenderTarget renderer (Just targetTexture)
@@ -403,9 +410,9 @@ main = do
 
       SDL.present renderer
 
-      unless quit (loop (theta + 2 `mod` 360) eye)
+      unless quit (loop (theta + 2 `mod` 360) eye ang)
 
-  loop (0 :: Int) (V2 1.6 5.3)
+  loop (0 :: Int) (V2 1.6 5.3) 0
 
   SDL.destroyWindow window
   SDL.quit
