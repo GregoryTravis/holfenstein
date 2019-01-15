@@ -14,6 +14,7 @@ import Data.Ord
 import Data.Word (Word32)
 import qualified Debug.Trace as TR
 import Foreign.C.Types
+import Foreign.Marshal.Utils (fillBytes)
 import Foreign.Ptr
 import Foreign.Storable (peekElemOff, pokeElemOff)
 import Linear
@@ -133,13 +134,8 @@ circlePointsF radius startAng step = map cp [startAng, startAng + step .. pi * 2
   where cp ang = V2 ((cos ang) * radius) ((sin ang) * radius)
 circlePoints r sA s = map whup $ circlePointsF r sA s
 
-clearCanvas :: Ptr Word32 -> Int -> IO ()
-clearCanvas wordPtr pitch = do
-  let writeFade (x, y) = let off = y * (pitch `div` 4) + x
-                          in pokeElemOff wordPtr off 0xff
-  mapM_ writeFade [(x, y)
-                      | x <- [0..((fromIntegral screenWidth :: Int)-1)]
-                      , y <- [0..((fromIntegral screenHeight :: Int)-1)]]
+clearCanvas2 :: Ptr Word32 -> Int -> IO ()
+clearCanvas2 wordPtr pitch = fillBytes wordPtr (fromIntegral 0) (pitch * screenHeight)
 
 goof2 :: Ptr Word32 -> Int -> IO ()
 goof2 wordPtr pitch = do
@@ -364,7 +360,7 @@ main = do
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture $ goof3 theta
       --withFramebuffer targetTexture goof2
-      withFramebuffer targetTexture clearCanvas
+      withFramebuffer targetTexture clearCanvas2
       drawMap targetTexture
       --let eye = (V2 1.1 1.1) + ((V2 20.0 15.0) * ((fromIntegral theta) / 360.0))
       --let eye = (V2 6.6 1.1) + ((V2 0.0 15.0) * ((fromIntegral theta) / 360.0))
@@ -372,7 +368,7 @@ main = do
       events <- map SDL.eventPayload <$> SDL.pollEvents
       --putStrLn $ show $ events
       let quit = SDL.QuitEvent `elem` events
-      let defaultEye = (V2 1.6 5.3) + ((V2 (-1.0) (-15.0)) * ((fromIntegral theta) / 360.0))
+      let defaultEye = (V2 1.6 5.3) -- + ((V2 (-1.0) (-15.0)) * ((fromIntegral theta) / 360.0))
       let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then defaultEye else (V2 x y))
                                             Nothing -> defaultEye
 
