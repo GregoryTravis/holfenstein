@@ -211,6 +211,7 @@ outsideWorld world x y = x < 0 || y < 0 || x >= w || y >= h
 outsideWorldF :: World -> V2 Double -> Bool
 outsideWorldF world (V2 x y) = case worldSize world of (V2 wx wy) -> x < 0 || x >= (fromIntegral wx) + 1 || y < -1 || y > (fromIntegral wy) + 1
 
+--isHorWall w x y | TR.trace (show ("isHorWall", x, y)) False = undefined
 isHorWall world x y = (isSolid world x (y - 1)) /= (isSolid world x y)
 isVerWall world x y = (isSolid world (x - 1) y) /= (isSolid world x y)
 isSolid :: World -> Int -> Int -> Bool
@@ -235,10 +236,14 @@ transposeMaybeHit Nothing = Nothing
 
 transposeV2 (V2 x y) = V2 y x
 
+doCastTr = False
+castTr s b | doCastTr = TR.trace s b
+           | otherwise = b
+
 castRay :: World -> V2 Double -> V2 Double -> Maybe WallPt
---castRay w a b | TR.trace ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
+castRay w a b | castTr ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
 castRay world eye@(V2 ex ey) dir@(V2 dx dy)
-  | (abs dy) < (abs dx) = stepRay world eye (eye + firstStep) unitStep slope
+  | (abs dy) <= (abs dx) = stepRay world eye (eye + firstStep) unitStep slope
   -- This is a terribly egregious hack
   | otherwise = transposeMaybeHit (castRay worldTransposed (transposeV2 eye) (transposeV2 dir))
   where slope = dy / dx
@@ -246,14 +251,14 @@ castRay world eye@(V2 ex ey) dir@(V2 dx dy)
         firstVerDx | dx > 0 = (fromIntegral (ceiling ex)) - ex
                    | dx < 0 = (fromIntegral (floor ex)) - ex
         firstVerDy = firstVerDx * slope
-        unitStep = V2 1.0 slope
+        unitStep = V2 (signum dx) ((signum dx) * slope)
 
 -- (x1, y1) is always on a vertical grid line; (x0, y0) is the previous one or
 -- the initial eye point.
 stepRay :: World -> V2 Double -> V2 Double -> V2 Double -> Double -> Maybe WallPt
---stepRay w p0 p1 u s | TR.trace (show "stepRay " ++ (show p0) ++ " " ++ (show p1) ++ " " ++ (show u) ++ " " ++ (show s)) False = undefined
+stepRay w p0 p1 u s | castTr (show ("stepRay", p0, p1, u, 2)) False = undefined
 stepRay world p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
-  | (floor y0) /= (floor y1) && isHorWall world (floor x0) (floor (max y0 y1)) && (abs slope) > 0 = Just $ Hor (x0 + (((fromIntegral (floor (max y0 y1))) - y0) / slope)) (floor (max y0 y1))
+  | (floor y0) /= (floor y1) && isHorWall world (floor (min x0 x1)) (floor (max y0 y1)) && (abs slope) > 0 = Just $ Hor (x0 + (((fromIntegral (floor (max y0 y1))) - y0) / slope)) (floor (max y0 y1))
   | isVerWall world (floor x1) (floor y1) = Just $ Ver (floor x1) y1
   | outsideWorldF world p0 = Nothing
   | otherwise = stepRay world p1 (p1 + unitStep) unitStep slope
@@ -284,8 +289,9 @@ thing eye t = withFramebuffer t $ castAndShowL eye dirs
           return hit
         castAndShowL eye dirs ptr pitch = mapM_ (\dir -> castAndShow eye dir ptr pitch) dirs
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
-        dirs = circlePointsF 1.0 0 (pi / 64)
+        dirs = circlePointsF 1.0 0 (pi / 32)
         --dirs = [V2 9.801714032956077e-2 0.9951847266721968, V2 (-9.801714032956077e-2) 0.9951847266721968]
+        --dirs = [V2 (-0.9) (-1.0)]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
 vroo = do
@@ -339,7 +345,11 @@ main = do
       --withFramebuffer targetTexture $ goof3 theta
       withFramebuffer targetTexture goof2
       drawMap targetTexture
-      let eye = (V2 1.5 1.5) + ((V2 2.0 2.0) * ((fromIntegral theta) / 360.0))
+      --let eye = (V2 1.1 1.1) + ((V2 20.0 15.0) * ((fromIntegral theta) / 360.0))
+      --let eye = (V2 6.6 1.1) + ((V2 0.0 15.0) * ((fromIntegral theta) / 360.0))
+      let eye = (V2 1.6 5.3) + ((V2 (-1.0) (-15.0)) * ((fromIntegral theta) / 360.0))
+      --let eye = (V2 3.9 3.2)
+      putStrLn $ show $ eye
       thing eye targetTexture
       events <- map SDL.eventPayload <$> SDL.pollEvents
       let quit = SDL.QuitEvent `elem` events
