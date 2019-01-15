@@ -18,6 +18,8 @@ import Foreign.Ptr
 import Foreign.Storable (peekElemOff, pokeElemOff)
 import Linear
 import Numeric (showHex)
+--import qualified SDL.Vect
+import SDL.Event (mouseMotionEventPos, EventPayload(MouseMotionEvent), MouseMotionEventData)
 import SDL.Vect
 import SDL.Video.Renderer (lockTexture, unlockTexture)
 import SDL (($=))
@@ -271,6 +273,9 @@ stepRay world p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
   | outsideWorldF world p0 = Nothing
   | otherwise = stepRay world p1 (p1 + unitStep) unitStep slope
 
+toWorldCoordinate :: Int -> Double
+toWorldCoordinate ix = ((fromIntegral ix)-100.0) / 50.0
+
 forDisplay :: Num a => [Line a] -> [Line a]
 forDisplay lines = 
   translateLines (V2 100 100) (scaleLines 50 lines)
@@ -309,6 +314,13 @@ vroo = do
   putStrLn $ show world
   putStrLn $ show $ (signorm (V2 1.0 0.5))
   return ()
+
+getCursorPos :: [EventPayload] -> Maybe (Int, Int)
+getCursorPos events = case (filter isMouseMotionEvent events) of [] -> Nothing
+                                                                 es -> case (last es) of (MouseMotionEvent d) -> case (mouseMotionEventPos d) of (P (V2 x y)) -> Just (fromIntegral x, fromIntegral y)
+  where isMouseMotionEvent (MouseMotionEvent _) = True
+        isMouseMotionEvent _ = False
+screenToWorld (x, y) = (toWorldCoordinate x, toWorldCoordinate y)
 
 main :: IO ()
 main = do
@@ -356,12 +368,16 @@ main = do
       drawMap targetTexture
       --let eye = (V2 1.1 1.1) + ((V2 20.0 15.0) * ((fromIntegral theta) / 360.0))
       --let eye = (V2 6.6 1.1) + ((V2 0.0 15.0) * ((fromIntegral theta) / 360.0))
-      let eye = (V2 1.6 5.3) + ((V2 (-1.0) (-15.0)) * ((fromIntegral theta) / 360.0))
       --let eye = (V2 3.9 3.2)
+      events <- map SDL.eventPayload <$> SDL.pollEvents
+      --putStrLn $ show $ events
+      let quit = SDL.QuitEvent `elem` events
+      let defaultEye = (V2 1.6 5.3) + ((V2 (-1.0) (-15.0)) * ((fromIntegral theta) / 360.0))
+      let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then defaultEye else (V2 x y))
+                                            Nothing -> defaultEye
+
       putStrLn $ show $ eye
       thing eye targetTexture
-      events <- map SDL.eventPayload <$> SDL.pollEvents
-      let quit = SDL.QuitEvent `elem` events
 
 {-
       setAsRenderTarget renderer (Just targetTexture)
