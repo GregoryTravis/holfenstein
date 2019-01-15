@@ -356,7 +356,7 @@ main = do
   let
     screenCenter = P (V2 (fromIntegral (screenWidth `div` 2)) (fromIntegral (screenHeight `div` 2)))
 
-    loop theta = do
+    loop theta prevEye = do
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture $ goof3 theta
       --withFramebuffer targetTexture goof2
@@ -368,9 +368,8 @@ main = do
       events <- map SDL.eventPayload <$> SDL.pollEvents
       --putStrLn $ show $ events
       let quit = SDL.QuitEvent `elem` events
-      let defaultEye = (V2 1.6 5.3) -- + ((V2 (-1.0) (-15.0)) * ((fromIntegral theta) / 360.0))
-      let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then defaultEye else (V2 x y))
-                                            Nothing -> defaultEye
+      let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then prevEye else (V2 x y))
+                                            Nothing -> prevEye
 
       putStrLn $ show $ eye
       thing eye targetTexture
@@ -404,9 +403,9 @@ main = do
 
       SDL.present renderer
 
-      unless quit (loop (theta + 2 `mod` 360))
+      unless quit (loop (theta + 2 `mod` 360) eye)
 
-  loop (0 :: Int)
+  loop (0 :: Int) (V2 1.6 5.3)
 
   SDL.destroyWindow window
   SDL.quit
