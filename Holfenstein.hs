@@ -318,6 +318,22 @@ getCursorPos events = case (filter isMouseMotionEvent events) of [] -> Nothing
         isMouseMotionEvent _ = False
 screenToWorld (x, y) = (toWorldCoordinate x, toWorldCoordinate y)
 
+fov = 60.0
+-- view plane starts one unit from origin perp to the x axis
+viewPlaneWidth = 2.0 * tan (fov / 2)
+viewPlaneLeft = V2 1.0 (viewPlaneWidth / 2)
+viewPlaneRight = V2 1.0 (-(viewPlaneWidth / 2))
+
+{-
+rotMatrix ang = V2 (V2 c (-s)) (V2 s c)
+  where c = cos ang
+        s = sin ang
+
+castDirs ang = map dirForColumn (lerpVV rotatedViewPlane 0 3) -- screenWidth)
+  where rotatedViewPlane = (rM !*! viewPlaneLeft, rM !*! viewPlaneRight)
+        rM = rotMatrix ang
+-}
+
 --thang :: V2 Double -> V2 Double -> IO ()
 thang eye dir t = withFramebuffer t $ thung eye dir
   where thung eye dir ptr pitch = do putStrLn $ show ("thung", eye, dir)
