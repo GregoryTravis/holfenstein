@@ -131,6 +131,14 @@ circlePointsF radius startAng step = map cp [startAng, startAng + step .. pi * 2
   where cp ang = V2 ((cos ang) * radius) ((sin ang) * radius)
 circlePoints r sA s = map whup $ circlePointsF r sA s
 
+clearCanvas :: Ptr Word32 -> Int -> IO ()
+clearCanvas wordPtr pitch = do
+  let writeFade (x, y) = let off = y * (pitch `div` 4) + x
+                          in pokeElemOff wordPtr off 0xff
+  mapM_ writeFade [(x, y)
+                      | x <- [0..((fromIntegral screenWidth :: Int)-1)]
+                      , y <- [0..((fromIntegral screenHeight :: Int)-1)]]
+
 goof2 :: Ptr Word32 -> Int -> IO ()
 goof2 wordPtr pitch = do
   let writeFade (x, y) = let off = y * (pitch `div` 4) + x
@@ -343,7 +351,8 @@ main = do
     loop theta = do
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture $ goof3 theta
-      withFramebuffer targetTexture goof2
+      --withFramebuffer targetTexture goof2
+      withFramebuffer targetTexture clearCanvas
       drawMap targetTexture
       --let eye = (V2 1.1 1.1) + ((V2 20.0 15.0) * ((fromIntegral theta) / 360.0))
       --let eye = (V2 6.6 1.1) + ((V2 0.0 15.0) * ((fromIntegral theta) / 360.0))
