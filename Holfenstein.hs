@@ -162,6 +162,7 @@ goof3 theta wordPtr pitch = do
   return ()
 
 data Line a = Line (V2 a) (V2 a) deriving Show
+scale :: Num a => V2 a -> Line a -> Line a
 scale s (Line a b) = Line (s * a) (s * b)
 translate v (Line a b) = Line (v + a) (v + b)
 scaleLines s lines = map (scale s) lines
@@ -324,14 +325,29 @@ viewPlaneWidth = 2.0 * tan (fov / 2)
 viewPlaneLeft = V2 1.0 (viewPlaneWidth / 2)
 viewPlaneRight = V2 1.0 (-(viewPlaneWidth / 2))
 
-{-
 rotMatrix ang = V2 (V2 c (-s)) (V2 s c)
   where c = cos ang
         s = sin ang
 
-castDirs ang = map dirForColumn (lerpVV rotatedViewPlane 0 3) -- screenWidth)
-  where rotatedViewPlane = (rM !*! viewPlaneLeft, rM !*! viewPlaneRight)
+{-
+scaleV (V2 x y) s = V2 (s * x) (s * y)
+
+foo :: V2 Double
+foo = V2 1.0 2.0
+bar :: Double
+bar = 3.4
+baz :: V2 Double
+baz = scaleV foo bar
+lerpVV :: (V2 Double, V2 Double) -> Double -> V2 Double
+lerpVV (left, right) k = (k * right) + ((1.0 - k) * left)
+lerpVVs :: (V2 Double, V2 Double) -> Int -> V2 Double
+lerpVVs lr count = map (lerpVV lr) $ map (step *) [0..(count - 1.0)]
+  where step = 1.0 / (count - 1.0)
+
+castDirs eye ang = map dirForColumn (lerpVVs rotatedViewPlane 3) -- screenWidth)
+  where rotatedViewPlane = ((rM !*! viewPlaneLeft) + eye, (rM !*! viewPlaneRight) + eye)
         rM = rotMatrix ang
+        dirForColmn planePoint = norm (eye - pos)
 -}
 
 --thang :: V2 Double -> V2 Double -> IO ()
