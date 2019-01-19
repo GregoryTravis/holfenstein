@@ -318,7 +318,7 @@ vroo = do
 
 --data PressRelease = Press | Release
 data KeyEvent = KeyEvent Int InputMotion deriving (Eq, Ord, Show)
-type KeySet = S.Set KeyEvent
+type KeySet = S.Set Int
 
 getKeyEvents :: [EventPayload] -> [KeyEvent]
 getKeyEvents events = map toKeyEvent $ filter isKeyboardEvent events
@@ -329,6 +329,11 @@ getKeyEvents events = map toKeyEvent $ filter isKeyboardEvent events
         getPressRelease (KeyboardEvent ke) = keyboardEventKeyMotion ke
         getCode (KeyboardEvent ke) = fromIntegral $ unwrapKeycode (keysymKeycode (keyboardEventKeysym ke))
         toKeyEvent event = KeyEvent (getCode event) (getPressRelease event)
+
+updateKeySet :: KeySet -> [KeyEvent] -> KeySet
+updateKeySet keySet (KeyEvent scanCode Pressed : kes) = updateKeySet (S.insert scanCode keySet) kes
+updateKeySet keySet (KeyEvent scanCode Released : kes) = updateKeySet (S.delete scanCode keySet) kes
+updateKeySet keySet [] = keySet
 
 getCursorPos :: [EventPayload] -> Maybe (Int, Int)
 getCursorPos events = case (filter isMouseMotionEvent events) of [] -> Nothing
@@ -429,7 +434,7 @@ main = do
   let
     screenCenter = P (V2 (fromIntegral (screenWidth `div` 2)) (fromIntegral (screenHeight `div` 2)))
 
-    loop theta prevEye prevAng = do
+    loop theta prevEye prevAng keySet = do
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture $ goof3 theta
       --withFramebuffer targetTexture goof2
@@ -441,8 +446,8 @@ main = do
       events <- map SDL.eventPayload <$> SDL.pollEvents
       --msp events
       let keyEvents = getKeyEvents events
-      case keyEvents of [] -> return ()
-                        _ -> msp ("ke", keyEvents)
+      let newKeySet = updateKeySet keySet keyEvents
+      if newKeySet /= keySet then msp newKeySet else return ()
       let quit = SDL.QuitEvent `elem` events
       let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then prevEye else (V2 x y))
                                             Nothing -> prevEye
@@ -483,9 +488,9 @@ main = do
 
       SDL.present renderer
 
-      unless quit (loop (theta + 2 `mod` 360) eye ang)
+      unless quit (loop (theta + 2 `mod` 360) eye ang newKeySet)
 
-  loop (0 :: Int) (V2 1.6 5.3) (pi / 4)
+  loop (0 :: Int) (V2 1.6 5.3) (pi / 4) S.empty
 
   SDL.destroyWindow window
   SDL.quit
