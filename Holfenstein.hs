@@ -297,13 +297,13 @@ renderWorld eye ang t = withFramebuffer t $ castAndShowL eye dirs
             Just hit -> do
               drawLines (forDisplayF (boxAround (wallPtToV2 hit))) ptr pitch
               drawLines (forDisplayF [(Line eye (wallPtToV2 hit))]) ptr pitch
+              msp ("hit", hit, wallHalfScreenHeight eye dir (wallPtToV2 hit))
             Nothing -> return ()
-          --putStrLn $ show (hit, dir)
           return hit
         castAndShowL eye dirs ptr pitch = mapM_ (\dir -> castAndShow eye dir ptr pitch) dirs
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
         --dirs = circlePointsF 1.0 0 (pi / 32)
-        vpps = viewPlanePoints eye ang
+        vpps = viewPlanePoints 2 eye ang
         dirs = map (\vpp -> signorm (vpp - eye)) vpps
         --dirs = [V2 9.801714032956077e-2 0.9951847266721968, V2 (-9.801714032956077e-2) 0.9951847266721968]
         --dirs = [V2 (-0.9) (-1.0)]
@@ -348,10 +348,19 @@ fov = pi / 3
 viewPlaneWidth = 2.0 * tan (fov / 2)
 viewPlaneLeft = V2 1.0 (viewPlaneWidth / 2)
 viewPlaneRight = V2 1.0 (-(viewPlaneWidth / 2))
+viewPlaneHeight = viewPlaneWidth * (fromIntegral screenHeight / fromIntegral screenWidth)
 
+wallHalfHeight = 0.5
+
+wallHalfScreenHeight :: V2 Double -> V2 Double -> V2 Double -> Int
+wallHalfScreenHeight eye dir hit = screenHalfHeight
+  where perpDist = (hit - eye) `dot` dir
+        hitViewPlaneHeight = wallHalfHeight / perpDist
+        screenHalfHeight = floor $ (fromIntegral (screenHeight `div` 2)) * (hitViewPlaneHeight / viewPlaneHeight)
+
+angToDir ang = V2 (cos ang) (sin ang)
 rotMatrix ang = V2 (V2 c (-s)) (V2 s c)
-  where c = cos ang
-        s = sin ang
+  where (V2 c s) = angToDir ang
 
 scaleV (V2 x y) s = V2 (s * x) (s * y)
 
@@ -367,22 +376,24 @@ lerpVVs lr count = map (lerpVV lr) $ map (step *) $ map fromIntegral [0..(count 
 multMV :: V2 (V2 Double) -> V2 Double -> V2 Double
 multMV (V2 (V2 x0 y0) (V2 x1 y1)) (V2 x y) = V2 ((x0 * x) + (y0 * y)) ((x1 * x) + (y1 * y))
 
-viewPlanePoints :: V2 Double -> Double -> [V2 Double]
-viewPlanePoints eye ang = lerpVVs rotatedViewPlane 7 -- screenWidth)
+viewPlanePoints :: Int -> V2 Double -> Double -> [V2 Double]
+viewPlanePoints numPoints eye ang = lerpVVs rotatedViewPlane numPoints
   where rotatedViewPlane = ((multMV rM viewPlaneLeft) + eye, (multMV rM viewPlaneRight) + eye)
         rM = rotMatrix ang
 
+{-
 castDirs :: V2 Double -> Double -> [V2 Double]
 castDirs eye ang = map dirForColumn $ viewPlanePoints eye ang
   where dirForColumn :: V2 Double -> V2 Double
         dirForColumn pos = signorm (eye - pos)
+-}
 
 boxPoints t pts = withFramebuffer t foo
   where foo ptr pitch = do
           mapM_ bar pts
             where bar pt = drawLines (forDisplayF (boxAround pt)) ptr pitch
 
-bong eye t = boxPoints t $ viewPlanePoints eye (pi / 4)
+--bong eye t = boxPoints t $ viewPlanePoints eye (pi / 4)
 
 --thang :: V2 Double -> V2 Double -> IO ()
 thang eye dir t = withFramebuffer t $ thung eye dir
@@ -463,7 +474,7 @@ main = do
       --msp events
       let keyEvents = getKeyEvents events
       let newKeySet = updateKeySet keySet keyEvents
-      if newKeySet /= keySet then msp newKeySet else return ()
+      --if newKeySet /= keySet then msp newKeySet else return ()
       let quit = SDL.QuitEvent `elem` events || S.member 27 newKeySet
 
       --putStrLn $ show $ eye
