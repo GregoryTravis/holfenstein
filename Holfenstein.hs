@@ -11,6 +11,7 @@ import Data.Foldable hiding (elem)
 import Data.List (nub)
 import Data.Maybe
 import Data.Ord
+import qualified Data.Set as S
 import Data.Word (Word32)
 import qualified Debug.Trace as TR
 import Foreign.C.Types
@@ -20,10 +21,10 @@ import Foreign.Storable (peekElemOff, pokeElemOff)
 import Linear
 import Numeric (showHex)
 --import qualified SDL.Vect
-import SDL.Event (mouseMotionEventPos, EventPayload(MouseMotionEvent), MouseMotionEventData)
+import SDL.Event --(mouseMotionEventPos, EventPayload(MouseMotionEvent), MouseMotionEventData)
 import SDL.Vect
 import SDL.Video.Renderer (lockTexture, unlockTexture)
-import SDL (($=))
+import SDL (($=), unwrapKeycode, keysymKeycode, unwrapKeycode)
 import qualified SDL
 import System.Exit
 import System.IO
@@ -315,6 +316,20 @@ vroo = do
   putStrLn $ show $ (signorm (V2 1.0 0.5))
   return ()
 
+--data PressRelease = Press | Release
+data KeyEvent = KeyEvent Int InputMotion deriving (Eq, Ord, Show)
+type KeySet = S.Set KeyEvent
+
+getKeyEvents :: [EventPayload] -> [KeyEvent]
+getKeyEvents events = map toKeyEvent $ filter isKeyboardEvent events
+  where keyboardEvents = filter isKeyboardEvent events
+        isKeyboardEvent (KeyboardEvent _) = True
+        isKeyboardEvent _ = False
+        getPressRelease :: EventPayload -> InputMotion
+        getPressRelease (KeyboardEvent ke) = keyboardEventKeyMotion ke
+        getCode (KeyboardEvent ke) = fromIntegral $ unwrapKeycode (keysymKeycode (keyboardEventKeysym ke))
+        toKeyEvent event = KeyEvent (getCode event) (getPressRelease event)
+
 getCursorPos :: [EventPayload] -> Maybe (Int, Int)
 getCursorPos events = case (filter isMouseMotionEvent events) of [] -> Nothing
                                                                  es -> case (last es) of (MouseMotionEvent d) -> case (mouseMotionEventPos d) of (P (V2 x y)) -> Just (fromIntegral x, fromIntegral y)
@@ -424,14 +439,17 @@ main = do
       --let eye = (V2 6.6 1.1) + ((V2 0.0 15.0) * ((fromIntegral theta) / 360.0))
       --let eye = (V2 3.9 3.2)
       events <- map SDL.eventPayload <$> SDL.pollEvents
-      --putStrLn $ show $ events
+      --msp events
+      let keyEvents = getKeyEvents events
+      case keyEvents of [] -> return ()
+                        _ -> msp ("ke", keyEvents)
       let quit = SDL.QuitEvent `elem` events
       let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then prevEye else (V2 x y))
                                             Nothing -> prevEye
 
       --putStrLn $ show $ eye
       let ang = prevAng
-      msp $ ("ang", ang)
+      --msp $ ("ang", ang)
       thing eye ang targetTexture
       --thang eye ang targetTexture
       --bong eye targetTexture
