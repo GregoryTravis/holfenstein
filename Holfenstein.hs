@@ -285,11 +285,12 @@ drawMap t = withFramebuffer t (drawLines map)
   where map = forDisplay $ allWalls world -- translateLines (V2 100 100) (scaleLines 50 allWalls)
 
 --thing t = withFramebuffer t $ castAndShow (V2 1.5 1.5) (V2 1.0 0.5)
-thing eye t = withFramebuffer t $ castAndShowL eye dirs
+thing eye ang t = withFramebuffer t $ castAndShowL eye dirs
   where castAndShow eye dir ptr pitch = do
           let hit = castRay world eye (signorm dir)
           drawLines (forDisplayF (boxAround eye)) ptr pitch
-          --drawLines (forDisplayF [(Line eye (eye + dir))]) ptr pitch
+          mapM_ (\pt -> drawLines (forDisplayF (boxAround pt)) ptr pitch) vpps
+        --drawLines (forDisplayF [(Line eye (eye + dir))]) ptr pitch
           case hit of
             Just hit -> do
               drawLines (forDisplayF (boxAround (wallPtToV2 hit))) ptr pitch
@@ -299,7 +300,9 @@ thing eye t = withFramebuffer t $ castAndShowL eye dirs
           return hit
         castAndShowL eye dirs ptr pitch = mapM_ (\dir -> castAndShow eye dir ptr pitch) dirs
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
-        dirs = circlePointsF 1.0 0 (pi / 32)
+        --dirs = circlePointsF 1.0 0 (pi / 32)
+        vpps = viewPlanePoints eye ang
+        dirs = map (\vpp -> signorm (vpp - eye)) vpps
         --dirs = [V2 9.801714032956077e-2 0.9951847266721968, V2 (-9.801714032956077e-2) 0.9951847266721968]
         --dirs = [V2 (-0.9) (-1.0)]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
@@ -427,10 +430,11 @@ main = do
                                             Nothing -> prevEye
 
       --putStrLn $ show $ eye
-      thing eye targetTexture
       let ang = prevAng
+      msp $ ("ang", ang)
+      thing eye ang targetTexture
       --thang eye ang targetTexture
-      bong eye targetTexture
+      --bong eye targetTexture
 
 {-
       setAsRenderTarget renderer (Just targetTexture)
@@ -463,7 +467,7 @@ main = do
 
       unless quit (loop (theta + 2 `mod` 360) eye ang)
 
-  loop (0 :: Int) (V2 1.6 5.3) 0
+  loop (0 :: Int) (V2 1.6 5.3) (pi / 4)
 
   SDL.destroyWindow window
   SDL.quit
