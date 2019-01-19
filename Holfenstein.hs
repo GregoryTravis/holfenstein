@@ -41,8 +41,8 @@ ifShowMap :: IO () -> IO ()
 ifShowMap io = if showMap then io else return ()
 
 screenWidth, screenHeight :: Int
-(screenWidth, screenHeight) = (640, 480)
 --(screenWidth, screenHeight) = (640, 480)
+(screenWidth, screenHeight) = (320, 240)
 
 data Texture = Texture SDL.Texture (V2 CInt)
 
@@ -317,7 +317,7 @@ renderWorld eye ang t = withFramebuffer t $ castAndShowL eye dirs
           hit <- castAndShow eye dir ptr pitch
           case hit of
             Just hit -> do
-              let hh = wallHalfScreenHeight eye dir (wallPtToV2 hit)
+              let hh = wallHalfScreenHeight eye eyeDir (wallPtToV2 hit)
               let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) white
               let clippedVStrip = clipToScreen unclippedVStrip
               --msp ("hit", hit, hh, unclippedVStrip, clippedVStrip)
@@ -326,8 +326,11 @@ renderWorld eye ang t = withFramebuffer t $ castAndShowL eye dirs
         castAndShowL eye dirs ptr pitch = mapM_ (\(x, dir) -> renderWall x eye dir ptr pitch) (zip [0..] dirs)
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
         --dirs = circlePointsF 1.0 0 (pi / 32)
-        vpps = viewPlanePoints (screenWidth `div` 4) eye ang
+        wid = (screenWidth `div` 2)
+        --wid = 27
+        vpps = viewPlanePoints wid eye ang --(screenWidth `div` 2) eye ang
         dirs = map (\vpp -> signorm (vpp - eye)) vpps
+        eyeDir = angToDir ang
         --dirs = [V2 9.801714032956077e-2 0.9951847266721968, V2 (-9.801714032956077e-2) 0.9951847266721968]
         --dirs = [V2 (-0.9) (-1.0)]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
@@ -373,12 +376,13 @@ viewPlaneLeft = V2 1.0 (viewPlaneWidth / 2)
 viewPlaneRight = V2 1.0 (-(viewPlaneWidth / 2))
 viewPlaneHeight = viewPlaneWidth * (fromIntegral screenHeight / fromIntegral screenWidth)
 
-wallHalfHeight = 0.5
+wallHalfHeight = 0.2
 
 wallHalfScreenHeight :: V2 Double -> V2 Double -> V2 Double -> Int
-wallHalfScreenHeight eye dir hit = screenHalfHeight
-  where perpDist = (hit - eye) `dot` dir
-        hitViewPlaneHeight = wallHalfHeight / perpDist
+--wallHalfScreenHeight eye dir hit | TR.trace (show (eye, dir, hit, ((hit - eye) `dot` dir), (norm (hit - eye)))) False = undefined
+wallHalfScreenHeight eye eyeDir hit = screenHalfHeight
+  where perpDist = (hit - eye) `dot` eyeDir
+        hitViewPlaneHeight = wallHalfHeight /  perpDist
         screenHalfHeight = floor $ (fromIntegral (screenHeight `div` 2)) * (hitViewPlaneHeight / viewPlaneHeight)
 
 angToDir ang = V2 (cos ang) (sin ang)
