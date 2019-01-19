@@ -67,6 +67,8 @@ setAsRenderTarget r (Just (Texture t _)) = SDL.rendererRenderTarget r $= Just t
 
 data Color = Color Int Int Int deriving Show
 white = Color 255 255 255
+lightGray = Color 200 200 200
+darkGray = Color 120 120 120
 
 packColor :: Color -> Word32
 packColor (Color r g b) =
@@ -317,8 +319,10 @@ renderWorld eye ang t = withFramebuffer t $ castAndShowL eye dirs
           hit <- castAndShow eye dir ptr pitch
           case hit of
             Just hit -> do
+              let color = case hit of (Hor _ _) -> lightGray
+                                      (Ver _ _) -> darkGray
               let hh = wallHalfScreenHeight eye eyeDir (wallPtToV2 hit)
-              let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) white
+              let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) color
               let clippedVStrip = clipToScreen unclippedVStrip
               --msp ("hit", hit, hh, unclippedVStrip, clippedVStrip)
               vstrip clippedVStrip ptr pitch
