@@ -353,13 +353,12 @@ castDirs eye ang = map dirForColumn $ viewPlanePoints eye ang
   where dirForColumn :: V2 Double -> V2 Double
         dirForColumn pos = signorm (eye - pos)
 
-bong eye t = withFramebuffer t foo
+boxPoints t pts = withFramebuffer t foo
   where foo ptr pitch = do
-          let pts = viewPlanePoints eye (pi / 4)
-          msp pts
-          msp ("vpp", viewPlaneLeft, viewPlaneRight, viewPlaneWidth)
           mapM_ bar pts
             where bar pt = drawLines (forDisplayF (boxAround pt)) ptr pitch
+
+bong eye t = boxPoints t $ viewPlanePoints eye (pi / 4)
 
 --thang :: V2 Double -> V2 Double -> IO ()
 thang eye dir t = withFramebuffer t $ thung eye dir
