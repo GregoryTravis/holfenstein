@@ -7,6 +7,7 @@ import Prelude hiding (any, mapM_)
 import Control.Exception.Base
 import Control.Monad hiding (mapM_)
 import Data.Bits
+import Data.Char (ord)
 import Data.Foldable hiding (elem)
 import Data.List (nub)
 import Data.Maybe
@@ -388,6 +389,21 @@ thang eye dir t = withFramebuffer t $ thung eye dir
   where thung eye dir ptr pitch = do putStrLn $ show ("thung", eye, dir)
                                      return ()
 
+dAng = 0.1
+dMove = 0.1
+updateEyeAng (eye, ang) keySet = (newEye, newAng)
+  where newAng = if S.member (ord 'a') keySet
+                   then ang - dAng
+                   else if S.member (ord 'd') keySet
+                          then ang + dAng
+                          else  ang
+        newEye = if S.member (ord 'w') keySet
+                   then eye + (dMove * forwards)
+                   else if S.member (ord 's') keySet
+                          then eye - (dMove * forwards)
+                          else eye
+        forwards = multMV (rotMatrix ang) (V2 1.0 0.0)
+
 main :: IO ()
 main = do
   --putStrLn $ show (map length world, nub (map length world))
@@ -449,11 +465,12 @@ main = do
       let newKeySet = updateKeySet keySet keyEvents
       if newKeySet /= keySet then msp newKeySet else return ()
       let quit = SDL.QuitEvent `elem` events || S.member 27 newKeySet
-      let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then prevEye else (V2 x y))
-                                            Nothing -> prevEye
+      --let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then prevEye else (V2 x y))
+                                            --Nothing -> prevEye
 
       --putStrLn $ show $ eye
-      let ang = prevAng
+      let (eye, ang) = updateEyeAng (prevEye, prevAng) newKeySet
+      --let ang = prevAng
       --msp $ ("ang", ang)
       thing eye ang targetTexture
       --thang eye ang targetTexture
