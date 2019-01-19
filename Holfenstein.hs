@@ -326,7 +326,7 @@ renderWorld eye ang t = withFramebuffer t $ castAndShowL eye dirs
         castAndShowL eye dirs ptr pitch = mapM_ (\(x, dir) -> renderWall x eye dir ptr pitch) (zip [0..] dirs)
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
         --dirs = circlePointsF 1.0 0 (pi / 32)
-        wid = (screenWidth `div` 2)
+        wid = (screenWidth `div` 1)
         --wid = 27
         vpps = viewPlanePoints wid eye ang --(screenWidth `div` 2) eye ang
         dirs = map (\vpp -> signorm (vpp - eye)) vpps
@@ -433,9 +433,9 @@ dAng = 0.1
 dMove = 0.1
 updateEyeAng (eye, ang) keySet = (newEye, newAng)
   where newAng = if S.member (ord 'a') keySet
-                   then ang - dAng
+                   then ang + dAng
                    else if S.member (ord 'd') keySet
-                          then ang + dAng
+                          then ang - dAng
                           else  ang
         newEye = if S.member (ord 'w') keySet
                    then eye + (dMove * forwards)
