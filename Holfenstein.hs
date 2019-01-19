@@ -36,8 +36,13 @@ import Util
 -- import Control.Applicative
 -- #endif
 
+showMap = False
+ifShowMap :: IO () -> IO ()
+ifShowMap io = if showMap then io else return ()
+
 screenWidth, screenHeight :: Int
 (screenWidth, screenHeight) = (640, 480)
+--(screenWidth, screenHeight) = (640, 480)
 
 data Texture = Texture SDL.Texture (V2 CInt)
 
@@ -60,7 +65,7 @@ setAsRenderTarget :: SDL.Renderer -> Maybe Texture -> IO ()
 setAsRenderTarget r Nothing = SDL.rendererRenderTarget r $= Nothing
 setAsRenderTarget r (Just (Texture t _)) = SDL.rendererRenderTarget r $= Just t
 
-data Color = Color Int Int Int
+data Color = Color Int Int Int deriving Show
 white = Color 255 255 255
 
 packColor :: Color -> Word32
@@ -80,6 +85,9 @@ withFramebuffer (Texture t _) f = do
   result <- f wordPtr (fromIntegral pitch :: Int)
   unlockTexture t
   return result
+
+vstrip :: VStrip -> Ptr Word32 -> Int -> IO ()
+vstrip (VStrip x y0 y1 color) ptr pitch = drawLine (Line (V2 x y0) (V2 x y1)) color ptr pitch
 
 drawLine :: Line Int -> Color -> Ptr Word32 -> Int -> IO ()
 drawLine (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
@@ -286,24 +294,39 @@ forDisplayF lines = map floorL (forDisplay lines)
 drawMap t = withFramebuffer t (drawLines map)
   where map = forDisplay $ allWalls world -- translateLines (V2 100 100) (scaleLines 50 allWalls)
 
+data VStrip = VStrip Int Int Int Color deriving Show
+
+--clipToScreen v | TR.trace (show v) False = undefined
+clipToScreen (VStrip x y0 y1 color) | y0 <= y1 =
+  VStrip x (max 0 y0) (min (screenHeight - 1) y1) color
+
 --thing t = withFramebuffer t $ castAndShow (V2 1.5 1.5) (V2 1.0 0.5)
 renderWorld eye ang t = withFramebuffer t $ castAndShowL eye dirs
   where castAndShow eye dir ptr pitch = do
           let hit = castRay world eye (signorm dir)
-          drawLines (forDisplayF (boxAround eye)) ptr pitch
-          mapM_ (\pt -> drawLines (forDisplayF (boxAround pt)) ptr pitch) vpps
+          ifShowMap $ drawLines (forDisplayF (boxAround eye)) ptr pitch
+          ifShowMap $ mapM_ (\pt -> drawLines (forDisplayF (boxAround pt)) ptr pitch) vpps
         --drawLines (forDisplayF [(Line eye (eye + dir))]) ptr pitch
           case hit of
             Just hit -> do
-              drawLines (forDisplayF (boxAround (wallPtToV2 hit))) ptr pitch
-              drawLines (forDisplayF [(Line eye (wallPtToV2 hit))]) ptr pitch
-              msp ("hit", hit, wallHalfScreenHeight eye dir (wallPtToV2 hit))
+              ifShowMap $ drawLines (forDisplayF (boxAround (wallPtToV2 hit))) ptr pitch
+              ifShowMap $ drawLines (forDisplayF [(Line eye (wallPtToV2 hit))]) ptr pitch
             Nothing -> return ()
           return hit
-        castAndShowL eye dirs ptr pitch = mapM_ (\dir -> castAndShow eye dir ptr pitch) dirs
+        renderWall x eye dir ptr pitch = do
+          hit <- castAndShow eye dir ptr pitch
+          case hit of
+            Just hit -> do
+              let hh = wallHalfScreenHeight eye dir (wallPtToV2 hit)
+              let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) white
+              let clippedVStrip = clipToScreen unclippedVStrip
+              --msp ("hit", hit, hh, unclippedVStrip, clippedVStrip)
+              vstrip clippedVStrip ptr pitch
+            Nothing -> return ()
+        castAndShowL eye dirs ptr pitch = mapM_ (\(x, dir) -> renderWall x eye dir ptr pitch) (zip [0..] dirs)
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
         --dirs = circlePointsF 1.0 0 (pi / 32)
-        vpps = viewPlanePoints 2 eye ang
+        vpps = viewPlanePoints (screenWidth `div` 4) eye ang
         dirs = map (\vpp -> signorm (vpp - eye)) vpps
         --dirs = [V2 9.801714032956077e-2 0.9951847266721968, V2 (-9.801714032956077e-2) 0.9951847266721968]
         --dirs = [V2 (-0.9) (-1.0)]
@@ -388,10 +411,12 @@ castDirs eye ang = map dirForColumn $ viewPlanePoints eye ang
         dirForColumn pos = signorm (eye - pos)
 -}
 
+{-
 boxPoints t pts = withFramebuffer t foo
   where foo ptr pitch = do
           mapM_ bar pts
             where bar pt = drawLines (forDisplayF (boxAround pt)) ptr pitch
+-}
 
 --bong eye t = boxPoints t $ viewPlanePoints eye (pi / 4)
 
@@ -466,7 +491,7 @@ main = do
       --withFramebuffer targetTexture $ goof3 theta
       --withFramebuffer targetTexture goof2
       withFramebuffer targetTexture clearCanvas2
-      drawMap targetTexture
+      ifShowMap $ drawMap targetTexture
       --let eye = (V2 1.1 1.1) + ((V2 20.0 15.0) * ((fromIntegral theta) / 360.0))
       --let eye = (V2 6.6 1.1) + ((V2 0.0 15.0) * ((fromIntegral theta) / 360.0))
       --let eye = (V2 3.9 3.2)
