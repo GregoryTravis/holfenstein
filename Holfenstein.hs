@@ -233,6 +233,7 @@ allSameLength xs = length (nub (map length xs)) == 1
 worldIsSquare = allSameLength world
 blah = assert worldIsSquare ()
 worldSize world = V2 (length world) (length (world !! 0))
+(V2 worldWidth worldHeight) = worldSize world
 outsideWorld :: World -> Int -> Int -> Bool
 outsideWorld world x y = x < 0 || y < 0 || x >= w || y >= h
   where V2 w h = worldSize world
@@ -291,12 +292,27 @@ stepRay world p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
   | outsideWorldF world p0 = Nothing
   | otherwise = stepRay world p1 (p1 + unitStep) unitStep slope
 
+-- (scale, translate)
+worldToScreen :: (Double, Int)
+worldToScreen = (scale, translate)
+  where hMargin = screenWidth `div` 10
+        vMargin = screenHeight `div` 10
+        hScale :: Double
+        hScale = (fromIntegral (screenWidth - 2 * hMargin)) / (fromIntegral (worldWidth + 2))
+        vScale :: Double
+        vScale = (fromIntegral (screenHeight - 2 * vMargin)) / (fromIntegral (worldHeight + 2))
+        scale = min hScale vScale
+        translate = min hMargin vMargin
+(wtsScale, wtsTranslate) = worldToScreen
+
 toWorldCoordinate :: Int -> Double
-toWorldCoordinate ix = ((fromIntegral ix)-10.0) / 5.0
+--toWorldCoordinate ix = case worldToScreen of (s, t) -> ((fromIntegral ix)-(fromIntegral t)) / s --(fromIntegral s)
+toWorldCoordinate ix = ((fromIntegral ix) - (fromIntegral wtsTranslate)) / wtsScale
 
 forDisplay :: Num a => [Line a] -> [Line a]
 forDisplay lines = 
-  translateLines (V2 10 10) (scaleLines 5 lines)
+  translateLines (V2 (fromIntegral wtsTranslate) (fromIntegral wtsTranslate)) (scaleLines (fromIntegral (floor wtsScale)) lines)
+--forDisplay lines = case worldToScreen of (s, t) -> translateLines (V2 t t) (scaleLines (V2 s s) lines)
 forDisplayF :: [Line Double] -> [Line Int]
 forDisplayF lines = map floorL (forDisplay lines)
   where floorL (Line a b) = Line (floorV a) (floorV b)
@@ -463,6 +479,7 @@ updateEyeAng (eye, ang) keySet = (newEye, newAng)
 
 main :: IO ()
 main = do
+  msp worldToScreen
   --putStrLn $ show (map length world, nub (map length world))
   --putStrLn $ show blah
   --vroo
@@ -516,7 +533,6 @@ main = do
       --withFramebuffer targetTexture $ goof3 theta
       --withFramebuffer targetTexture goof2
       withFramebuffer targetTexture clearCanvas2
-      ifShowMap $ drawMap targetTexture
       --let eye = (V2 1.1 1.1) + ((V2 20.0 15.0) * ((fromIntegral theta) / 360.0))
       --let eye = (V2 6.6 1.1) + ((V2 0.0 15.0) * ((fromIntegral theta) / 360.0))
       --let eye = (V2 3.9 3.2)
@@ -534,6 +550,7 @@ main = do
       --let ang = prevAng
       --msp $ ("ang", ang)
       renderWorld eye ang targetTexture
+      ifShowMap $ drawMap targetTexture
       --thang eye ang targetTexture
       --bong eye targetTexture
 
