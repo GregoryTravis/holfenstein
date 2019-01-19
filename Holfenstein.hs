@@ -37,7 +37,7 @@ import Util
 -- import Control.Applicative
 -- #endif
 
-showMap = False
+showMap = True
 ifShowMap :: IO () -> IO ()
 ifShowMap io = if showMap then io else return ()
 
@@ -193,6 +193,14 @@ box (V2 x0 y0) (V2 x1 y1) = [Line a b, Line b c, Line c d, Line d a]
 -- Walls are identified by their least coord along their axis
 -- Remember these are drawn upside down
 worldMap :: [[Char]]
+worldMap___ = [
+  "###########",
+  "#       # #",
+  "#       # #",
+  "#    #    #",
+  "# #       #",
+  "# #       #",
+  "###########" ]
 worldMap = [
   "########",
   "#    # #",
@@ -284,11 +292,11 @@ stepRay world p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
   | otherwise = stepRay world p1 (p1 + unitStep) unitStep slope
 
 toWorldCoordinate :: Int -> Double
-toWorldCoordinate ix = ((fromIntegral ix)-100.0) / 50.0
+toWorldCoordinate ix = ((fromIntegral ix)-10.0) / 5.0
 
 forDisplay :: Num a => [Line a] -> [Line a]
 forDisplay lines = 
-  translateLines (V2 100 100) (scaleLines 50 lines)
+  translateLines (V2 10 10) (scaleLines 5 lines)
 forDisplayF :: [Line Double] -> [Line Int]
 forDisplayF lines = map floorL (forDisplay lines)
   where floorL (Line a b) = Line (floorV a) (floorV b)
@@ -303,17 +311,19 @@ data VStrip = VStrip Int Int Int Color deriving Show
 clipToScreen (VStrip x y0 y1 color) | y0 <= y1 =
   VStrip x (max 0 y0) (min (screenHeight - 1) y1) color
 
+fal xs = [head xs, last xs]
+
 --thing t = withFramebuffer t $ castAndShow (V2 1.5 1.5) (V2 1.0 0.5)
 renderWorld eye ang t = withFramebuffer t $ castAndShowL eye dirs
   where castAndShow eye dir ptr pitch = do
           let hit = castRay world eye (signorm dir)
-          ifShowMap $ drawLines (forDisplayF (boxAround eye)) ptr pitch
-          ifShowMap $ mapM_ (\pt -> drawLines (forDisplayF (boxAround pt)) ptr pitch) vpps
+          --ifShowMap $ mapM_ (\pt -> drawLines (forDisplayF (boxAround pt)) ptr pitch) (fal vpps)
         --drawLines (forDisplayF [(Line eye (eye + dir))]) ptr pitch
           case hit of
             Just hit -> do
-              ifShowMap $ drawLines (forDisplayF (boxAround (wallPtToV2 hit))) ptr pitch
-              ifShowMap $ drawLines (forDisplayF [(Line eye (wallPtToV2 hit))]) ptr pitch
+              --ifShowMap $ drawLines (forDisplayF (boxAround (wallPtToV2 hit))) ptr pitch
+              --ifShowMap $ drawLines (forDisplayF [(Line eye (wallPtToV2 hit))]) ptr pitch
+              return ()
             Nothing -> return ()
           return hit
         renderWall x eye dir ptr pitch = do
@@ -328,7 +338,9 @@ renderWorld eye ang t = withFramebuffer t $ castAndShowL eye dirs
               --msp ("hit", hit, hh, unclippedVStrip, clippedVStrip)
               slowDrawVStrip clippedVStrip ptr pitch
             Nothing -> return ()
-        castAndShowL eye dirs ptr pitch = mapM_ (\(x, dir) -> renderWall x eye dir ptr pitch) (zip [0..] dirs)
+        castAndShowL eye dirs ptr pitch = do
+          ifShowMap $ drawLines (forDisplayF (boxAround eye)) ptr pitch
+          mapM_ (\(x, dir) -> renderWall x eye dir ptr pitch) (zip [0..] dirs)
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
         --dirs = circlePointsF 1.0 0 (pi / 32)
         wid = (screenWidth `div` 1)
@@ -381,7 +393,7 @@ viewPlaneLeft = V2 1.0 (viewPlaneWidth / 2)
 viewPlaneRight = V2 1.0 (-(viewPlaneWidth / 2))
 viewPlaneHeight = viewPlaneWidth * (fromIntegral screenHeight / fromIntegral screenWidth)
 
-wallHalfHeight = 0.2
+wallHalfHeight = 0.5
 
 wallHalfScreenHeight :: V2 Double -> V2 Double -> V2 Double -> Int
 --wallHalfScreenHeight eye dir hit | TR.trace (show (eye, dir, hit, ((hit - eye) `dot` dir), (norm (hit - eye)))) False = undefined
