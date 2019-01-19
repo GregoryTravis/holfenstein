@@ -287,7 +287,7 @@ drawMap t = withFramebuffer t (drawLines map)
   where map = forDisplay $ allWalls world -- translateLines (V2 100 100) (scaleLines 50 allWalls)
 
 --thing t = withFramebuffer t $ castAndShow (V2 1.5 1.5) (V2 1.0 0.5)
-render eye ang t = withFramebuffer t $ castAndShowL eye dirs
+renderWorld eye ang t = withFramebuffer t $ castAndShowL eye dirs
   where castAndShow eye dir ptr pitch = do
           let hit = castRay world eye (signorm dir)
           drawLines (forDisplayF (boxAround eye)) ptr pitch
@@ -472,7 +472,7 @@ main = do
                                             Nothing -> kEye
       --let ang = prevAng
       --msp $ ("ang", ang)
-      render eye ang targetTexture
+      renderWorld eye ang targetTexture
       --thang eye ang targetTexture
       --bong eye targetTexture
 
