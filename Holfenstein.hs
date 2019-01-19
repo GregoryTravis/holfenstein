@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main (main) where
 
+import Data.Time.Clock.POSIX (getPOSIXTime)
 import Prelude hiding (any, mapM_)
 import Control.Exception.Base
 import Control.Monad hiding (mapM_)
@@ -491,10 +492,14 @@ main = do
   targetTexture <- createBlank renderer (V2 (fromIntegral screenWidth) (fromIntegral screenHeight)) SDL.TextureAccessStreaming
   --vroo
 
+  startNow <- getPOSIXTime 
+
   let
     screenCenter = P (V2 (fromIntegral (screenWidth `div` 2)) (fromIntegral (screenHeight `div` 2)))
 
-    loop theta prevEye prevAng keySet = do
+    loop lastNow theta prevEye prevAng keySet = do
+      now <- getPOSIXTime 
+      --putStrLn $ "FPS " ++ (show $ 1.0 / (now - lastNow))
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture $ goof3 theta
       --withFramebuffer targetTexture goof2
@@ -549,9 +554,9 @@ main = do
 
       SDL.present renderer
 
-      unless quit (loop (theta + 2 `mod` 360) eye ang newKeySet)
+      unless quit (loop now (theta + 2 `mod` 360) eye ang newKeySet)
 
-  loop (0 :: Int) (V2 1.6 5.3) (pi / 4) S.empty
+  loop startNow (0 :: Int) (V2 1.6 5.3) (pi / 4) S.empty
 
   SDL.destroyWindow window
   SDL.quit
