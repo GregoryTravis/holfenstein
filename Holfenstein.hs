@@ -89,8 +89,8 @@ withFramebuffer (Texture t _) f = do
   unlockTexture t
   return result
 
-vstrip :: VStrip -> Ptr Word32 -> Int -> IO ()
-vstrip (VStrip x y0 y1 color) ptr pitch = drawLine (Line (V2 x y0) (V2 x y1)) color ptr pitch
+slowDrawVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
+slowDrawVStrip (VStrip x y0 y1 color) ptr pitch = drawLine (Line (V2 x y0) (V2 x y1)) color ptr pitch
 
 drawLine :: Line Int -> Color -> Ptr Word32 -> Int -> IO ()
 drawLine (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
@@ -326,7 +326,7 @@ renderWorld eye ang t = withFramebuffer t $ castAndShowL eye dirs
               let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) color
               let clippedVStrip = clipToScreen unclippedVStrip
               --msp ("hit", hit, hh, unclippedVStrip, clippedVStrip)
-              vstrip clippedVStrip ptr pitch
+              slowDrawVStrip clippedVStrip ptr pitch
             Nothing -> return ()
         castAndShowL eye dirs ptr pitch = mapM_ (\(x, dir) -> renderWall x eye dir ptr pitch) (zip [0..] dirs)
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
