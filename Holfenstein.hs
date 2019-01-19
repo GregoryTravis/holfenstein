@@ -319,7 +319,7 @@ getCursorPos events = case (filter isMouseMotionEvent events) of [] -> Nothing
         isMouseMotionEvent _ = False
 screenToWorld (x, y) = (toWorldCoordinate x, toWorldCoordinate y)
 
-fov = 60.0
+fov = pi / 3
 -- view plane starts one unit from origin perp to the x axis
 viewPlaneWidth = 2.0 * tan (fov / 2)
 viewPlaneLeft = V2 1.0 (viewPlaneWidth / 2)
@@ -329,26 +329,37 @@ rotMatrix ang = V2 (V2 c (-s)) (V2 s c)
   where c = cos ang
         s = sin ang
 
-{-
 scaleV (V2 x y) s = V2 (s * x) (s * y)
 
-foo :: V2 Double
-foo = V2 1.0 2.0
-bar :: Double
-bar = 3.4
-baz :: V2 Double
-baz = scaleV foo bar
-lerpVV :: (V2 Double, V2 Double) -> Double -> V2 Double
+lerpVV :: (V2 Double, V2 Double) -> V2 Double -> V2 Double
 lerpVV (left, right) k = (k * right) + ((1.0 - k) * left)
-lerpVVs :: (V2 Double, V2 Double) -> Int -> V2 Double
-lerpVVs lr count = map (lerpVV lr) $ map (step *) [0..(count - 1.0)]
-  where step = 1.0 / (count - 1.0)
+lerpVVs :: (V2 Double, V2 Double) -> Int -> [V2 Double]
+lerpVVs lr count = map (lerpVV lr) $ map (step *) $ map fromIntegral [0..(count - 1)]
+  where step = 1.0 / (fromIntegral (count - 1))
 
-castDirs eye ang = map dirForColumn (lerpVVs rotatedViewPlane 3) -- screenWidth)
-  where rotatedViewPlane = ((rM !*! viewPlaneLeft) + eye, (rM !*! viewPlaneRight) + eye)
+--foo :: V2 double
+--foo = (V2 (V2 1.0 1.0) (V2 1.0 1.0)) !*! (V2 1.0 1.0)
+
+multMV :: V2 (V2 Double) -> V2 Double -> V2 Double
+multMV (V2 (V2 x0 y0) (V2 x1 y1)) (V2 x y) = V2 ((x0 * x) + (y0 * y)) ((x1 * x) + (y1 * y))
+
+viewPlanePoints :: V2 Double -> Double -> [V2 Double]
+viewPlanePoints eye ang = lerpVVs rotatedViewPlane 7 -- screenWidth)
+  where rotatedViewPlane = ((multMV rM viewPlaneLeft) + eye, (multMV rM viewPlaneRight) + eye)
         rM = rotMatrix ang
-        dirForColmn planePoint = norm (eye - pos)
--}
+
+castDirs :: V2 Double -> Double -> [V2 Double]
+castDirs eye ang = map dirForColumn $ viewPlanePoints eye ang
+  where dirForColumn :: V2 Double -> V2 Double
+        dirForColumn pos = signorm (eye - pos)
+
+bong eye t = withFramebuffer t foo
+  where foo ptr pitch = do
+          let pts = viewPlanePoints eye (pi / 4)
+          msp pts
+          msp ("vpp", viewPlaneLeft, viewPlaneRight, viewPlaneWidth)
+          mapM_ bar pts
+            where bar pt = drawLines (forDisplayF (boxAround pt)) ptr pitch
 
 --thang :: V2 Double -> V2 Double -> IO ()
 thang eye dir t = withFramebuffer t $ thung eye dir
@@ -357,9 +368,17 @@ thang eye dir t = withFramebuffer t $ thung eye dir
 
 main :: IO ()
 main = do
-  putStrLn $ show (map length world, nub (map length world))
-  putStrLn $ show blah
-  vroo
+  --putStrLn $ show (map length world, nub (map length world))
+  --putStrLn $ show blah
+  --vroo
+  --putStrLn $ show $ multMV (V2 (V2 1.0 2.0) (V2 3.0 4.0)) (V2 10.0 100.0)
+  --let rm = rotMatrix (pi / 4)
+  --msp rm
+  --msp $ multMV rm (V2 1.0 0.0)
+  --msp $ multMV (rotMatrix (pi / 8)) (V2 1.0 0.0)
+  --msp $ multMV (rotMatrix (-(pi / 8))) (V2 1.0 0.0)
+  --msp $ multMV (rotMatrix ((3 * pi) / 4)) (V2 1.0 0.0)
+  --msp $ multMV (rotMatrix ((3 * pi) / 4)) (V2 0.0 1.0)
   --exitWith ExitSuccess
 
   hSetBuffering stdout NoBuffering
@@ -411,7 +430,8 @@ main = do
       --putStrLn $ show $ eye
       thing eye targetTexture
       let ang = prevAng
-      thang eye ang targetTexture
+      --thang eye ang targetTexture
+      bong eye targetTexture
 
 {-
       setAsRenderTarget renderer (Just targetTexture)
