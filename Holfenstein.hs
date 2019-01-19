@@ -448,7 +448,7 @@ main = do
       let keyEvents = getKeyEvents events
       let newKeySet = updateKeySet keySet keyEvents
       if newKeySet /= keySet then msp newKeySet else return ()
-      let quit = SDL.QuitEvent `elem` events
+      let quit = SDL.QuitEvent `elem` events || S.member 27 newKeySet
       let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then prevEye else (V2 x y))
                                             Nothing -> prevEye
 
