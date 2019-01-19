@@ -465,11 +465,11 @@ main = do
       let newKeySet = updateKeySet keySet keyEvents
       if newKeySet /= keySet then msp newKeySet else return ()
       let quit = SDL.QuitEvent `elem` events || S.member 27 newKeySet
-      --let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then prevEye else (V2 x y))
-                                            --Nothing -> prevEye
 
       --putStrLn $ show $ eye
-      let (eye, ang) = updateEyeAng (prevEye, prevAng) newKeySet
+      let (kEye, ang) = updateEyeAng (prevEye, prevAng) newKeySet
+      let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then kEye else (V2 x y))
+                                            Nothing -> kEye
       --let ang = prevAng
       --msp $ ("ang", ang)
       thing eye ang targetTexture
