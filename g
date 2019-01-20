@@ -5,4 +5,4 @@
 #(ghc -outputdir ifs -o Holfenstein Holfenstein.hs && ./Holfenstein) 2>&1 | tee out
 
 # Doesn't work on linux, probably missing prof libraries
-(ghc -rtsopts -prof -Werror -ferror-spans -fprof-auto -fprof-cafs -outputdir ifs -o Holfenstein Holfenstein.hs && ./Holfenstein -cx +RTS) 2>&1 | tee out
+(ghc -rtsopts -prof -Werror -ferror-spans -fprof-auto -fprof-cafs -outputdir ifs -o Holfenstein Holfenstein.hs && ./Holfenstein -cx +RTS -p) 2>&1 | tee out

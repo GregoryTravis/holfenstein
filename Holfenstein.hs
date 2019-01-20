@@ -92,6 +92,13 @@ withFramebuffer (Texture t _) f = do
 slowDrawVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
 slowDrawVStrip (VStrip x y0 y1 color) ptr pitch = drawLine (Line (V2 x y0) (V2 x y1)) color ptr pitch
 
+fastDrawVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
+fastDrawVStrip (VStrip x y0 y1 color) ptr pitch = do
+  mapM_ foo [y0..y1]
+  where foo y = drawPoint (V2 x y) color ptr pitch
+
+drawVStrip = fastDrawVStrip
+
 drawLine :: Line Int -> Color -> Ptr Word32 -> Int -> IO ()
 drawLine (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
   where delta | isVert = V2 ((signum dx) * (abs (dx / dy))) (signum dy)
@@ -352,7 +359,7 @@ renderWorld eye ang t = withFramebuffer t $ castAndShowL eye dirs
               let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) color
               let clippedVStrip = clipToScreen unclippedVStrip
               --msp ("hit", hit, hh, unclippedVStrip, clippedVStrip)
-              slowDrawVStrip clippedVStrip ptr pitch
+              drawVStrip clippedVStrip ptr pitch
             Nothing -> return ()
         castAndShowL eye dirs ptr pitch = do
           ifShowMap $ drawLines (forDisplayF (boxAround eye)) ptr pitch
@@ -528,7 +535,7 @@ main = do
 
     loop lastNow theta prevEye prevAng keySet = do
       now <- getPOSIXTime 
-      --putStrLn $ "FPS " ++ (show $ 1.0 / (now - lastNow))
+      putStrLn $ "FPS " ++ (show $ 1.0 / (now - lastNow))
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture $ goof3 theta
       --withFramebuffer targetTexture goof2
