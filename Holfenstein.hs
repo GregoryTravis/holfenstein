@@ -92,16 +92,29 @@ withFramebuffer (Texture t _) f = do
   unlockTexture t
   return result
 
-slowDrawVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
-slowDrawVStrip (VStrip x y0 y1 color) ptr pitch = drawLine (Line (V2 x y0) (V2 x y1)) color ptr pitch
+{-
+slowTextureVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
+slowTextureVStrip v@(VStrip x y0 y1 color) ptr pitch
+  | y0 < 0 || y1 >= screenHeight = slowFillVStrip v ptr pitch
+  | otherwise = slowTextureVStrip' v ptr pitch
 
-fastDrawVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
-fastDrawVStrip (VStrip x y0 y1 color) ptr pitch = do
+textureWidth = 64
+textureHeight = 64
+
+slowTextureVStrip' :: VStrip -> Ptr Word32 -> Int -> IO ()
+slowTextureVStrip' v@(VStrip x y0 y1 color) ptr pitch
+-}
+
+slowFillVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
+slowFillVStrip (VStrip x y0 y1 color) ptr pitch = drawLine (Line (V2 x y0) (V2 x y1)) color ptr pitch
+
+fastFillVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
+fastFillVStrip (VStrip x y0 y1 color) ptr pitch = do
   mapM_ foo [y0..y1]
   where foo y = drawPoint (V2 x y) color ptr pitch
 
-fasterDrawVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
-fasterDrawVStrip (VStrip x y0 y1 color) ptr pitch = do
+fasterFillVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
+fasterFillVStrip (VStrip x y0 y1 color) ptr pitch = do
   assertM () (inScreenBounds (V2 x y0) && inScreenBounds (V2 x y1) && y0 <= y1)
     foo start
     where foo writePtr = 
@@ -115,15 +128,15 @@ fasterDrawVStrip (VStrip x y0 y1 color) ptr pitch = do
           start = plusPtr ptr ((y0 * lineSize) + (x*4))
           end = plusPtr ptr ((y1 * lineSize) + (x*4))
 
-fastestDrawVStripH :: VStrip -> Ptr Word32 -> Int -> IO ()
-fastestDrawVStripH (VStrip x y0 y1 color) ptr pitch = do
+fastestFillVStripH :: VStrip -> Ptr Word32 -> Int -> IO ()
+fastestFillVStripH (VStrip x y0 y1 color) ptr pitch = do
   assertM () (inScreenBounds (V2 x y0) && inScreenBounds (V2 x y1) && y0 <= y1) $
-    fastestDrawVStrip start (fromIntegral (y1 - y0 + 1)) (fromIntegral (pitch `div` 4)) (fromIntegral color)
+    fastestFillVStrip start (fromIntegral (y1 - y0 + 1)) (fromIntegral (pitch `div` 4)) (fromIntegral color)
     where lineSize = pitch
           start = plusPtr ptr ((y0 * lineSize) + (x*4))
           --end = plusPtr ptr ((y1 * lineSize) + (x*4))
 
-drawVStrip = fastestDrawVStripH
+drawVStrip = fastestFillVStripH
 
 drawLine :: Line Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
 drawLine (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
