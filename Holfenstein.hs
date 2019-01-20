@@ -92,7 +92,7 @@ withFramebuffer (Texture t _) f = do
   unlockTexture t
   return result
 
-drawVStrip = lessSlowTextureVStrip
+drawVStrip = textureVStrip
 
 textureWidth = 64
 textureHeight = 64
@@ -142,7 +142,22 @@ lessSlowTextureVStrip horPos v@(VStrip x y0 y1 color) ptr pitch =
         fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
         fty0 = fty cy0
         dfty = (fty 1) - (fty 0)
+        -- clipped screen coords
+        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 color) -> (cy0, cy1)
 
+-- Inline drawPoint
+textureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
+textureVStrip horPos v@(VStrip x y0 y1 color) ptr pitch =
+  loop startPtr cy0 fty0
+  where loop curPtr cy fty = do col <- sampler tx (floor fty)
+                                poke curPtr col
+                                if cy < cy1 then loop (plusPtr curPtr dPtr) (cy + 1) (fty + dfty) else return ()
+        startPtr = plusPtr ptr ((cy0 * pitch) + (x*4))
+        dPtr = pitch
+        tx = floor (horPos * (fromIntegral textureWidth))
+        fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
+        fty0 = fty cy0
+        dfty = (fty 1) - (fty 0)
         -- clipped screen coords
         (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 color) -> (cy0, cy1)
 
