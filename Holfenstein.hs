@@ -43,8 +43,8 @@ ifShowMap :: IO () -> IO ()
 ifShowMap io = if showMap then io else return ()
 
 screenWidth, screenHeight :: Int
---(screenWidth, screenHeight) = (640, 480)
-(screenWidth, screenHeight) = (320, 240)
+(screenWidth, screenHeight) = (640, 480)
+--(screenWidth, screenHeight) = (320, 240)
 
 data Texture = Texture SDL.Texture (V2 CInt)
 
@@ -215,7 +215,7 @@ box (V2 x0 y0) (V2 x1 y1) = [Line a b, Line b c, Line c d, Line d a]
 -- Walls are identified by their least coord along their axis
 -- Remember these are drawn upside down
 worldMap :: [[Char]]
-worldMap___ = [
+worldMap = [
   "###########",
   "#       # #",
   "#       # #",
@@ -223,7 +223,7 @@ worldMap___ = [
   "# #       #",
   "# #       #",
   "###########" ]
-worldMap = [
+worldMap___ = [
   "########",
   "#    # #",
   "#    # #",
