@@ -331,7 +331,7 @@ forDisplayF lines = map floorL (forDisplay lines)
   where floorL (Line a b) = Line (floorV a) (floorV b)
         floorV (V2 x y) = V2 (floor x) (floor y)
 
-drawMap t = withFramebuffer t (drawLines map)
+drawMap = drawLines map
   where map = forDisplay $ allWalls world -- translateLines (V2 100 100) (scaleLines 50 allWalls)
 
 data VStrip = VStrip Int Int Int PackedColor deriving Show
@@ -343,7 +343,7 @@ clipToScreen (VStrip x y0 y1 color) | y0 <= y1 =
 fal xs = [head xs, last xs]
 
 --thing t = withFramebuffer t $ castAndShow (V2 1.5 1.5) (V2 1.0 0.5)
-renderWorld eye ang t = withFramebuffer t $ castAndShowL eye dirs
+renderWorld eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where castAndShow eye dir ptr pitch = do
           let hit = castRay world eye (signorm dir)
           --ifShowMap $ mapM_ (\pt -> drawLines (forDisplayF (boxAround pt)) ptr pitch) (fal vpps)
@@ -380,6 +380,11 @@ renderWorld eye ang t = withFramebuffer t $ castAndShowL eye dirs
         --dirs = [V2 9.801714032956077e-2 0.9951847266721968, V2 (-9.801714032956077e-2) 0.9951847266721968]
         --dirs = [V2 (-0.9) (-1.0)]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
+
+drawAll eye ang ptr pitch = do
+  clearCanvas2 ptr pitch
+  renderWorld eye ang ptr pitch
+  ifShowMap $ drawMap ptr pitch
 
 vroo = do
   putStrLn $ show $ V2 3.4 4.5
@@ -544,7 +549,6 @@ main = do
       putStrLn $ "FPS " ++ (show $ 1.0 / (now - lastNow))
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture goof2
-      withFramebuffer targetTexture clearCanvas2
       --let eye = (V2 1.1 1.1) + ((V2 20.0 15.0) * ((fromIntegral theta) / 360.0))
       --let eye = (V2 6.6 1.1) + ((V2 0.0 15.0) * ((fromIntegral theta) / 360.0))
       --let eye = (V2 3.9 3.2)
@@ -561,8 +565,7 @@ main = do
                                             Nothing -> kEye
       --let ang = prevAng
       --msp $ ("ang", ang)
-      renderWorld eye ang targetTexture
-      ifShowMap $ drawMap targetTexture
+      withFramebuffer targetTexture $ drawAll eye ang
       --thang eye ang targetTexture
       --bong eye targetTexture
 
