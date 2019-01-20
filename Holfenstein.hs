@@ -97,8 +97,8 @@ drawVStrip = lessSlowTextureVStrip
 textureWidth = 64
 textureHeight = 64
 
-sampler :: Int -> Int-> PackedColor
-sampler x y
+hSampler :: Int -> Int-> PackedColor
+hSampler x y
   | (isOdd x == isOdd y) = lightGray
   | otherwise = darkGray
   where checkSize = 8
@@ -114,7 +114,8 @@ calcTexCoord (V2 sy0 sy1) (V2 ty0 ty1) sy =
 slowTextureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
 slowTextureVStrip horPos v@(VStrip x y0 y1 color) ptr pitch =
   mapM_ foo [cy0..cy1]
-  where foo y = drawPoint (V2 x y) (sampler tx (ty y)) ptr pitch
+  where foo y = do col <- sampler tx (ty y)
+                   drawPoint (V2 x y) (fromIntegral col) ptr pitch
         tx = floor (horPos * (fromIntegral textureWidth))
         fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
 
@@ -134,9 +135,9 @@ lessSlowTextureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
 lessSlowTextureVStrip horPos v@(VStrip x y0 y1 color) ptr pitch =
   loop cy0 fty0
   --mapM_ foo [cy0..cy1]
-  where loop cy fty = do drawPoint (V2 x cy) (sampler tx (floor fty)) ptr pitch
+  where loop cy fty = do col <- sampler tx (floor fty)
+                         drawPoint (V2 x cy) (fromIntegral col) ptr pitch
                          if cy < cy1 then loop (cy + 1) (fty + dfty) else return ()
-        --foo y = drawPoint (V2 x y) (sampler tx (ty y)) ptr pitch
         tx = floor (horPos * (fromIntegral textureWidth))
         fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
         fty0 = fty cy0

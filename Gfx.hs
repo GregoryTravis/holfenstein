@@ -6,3 +6,4 @@ import Foreign.C
 import Foreign.Ptr
  
 foreign import ccall "fastestFillVStrip" fastestFillVStrip :: Ptr Word32 -> CInt -> CInt -> CInt -> IO ()
+foreign import ccall "sampler" sampler :: CInt -> CInt -> IO CInt
