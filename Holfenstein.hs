@@ -118,7 +118,7 @@ fasterDrawVStrip (VStrip x y0 y1 color) ptr pitch = do
 fastestDrawVStripH :: VStrip -> Ptr Word32 -> Int -> IO ()
 fastestDrawVStripH (VStrip x y0 y1 color) ptr pitch = do
   assertM () (inScreenBounds (V2 x y0) && inScreenBounds (V2 x y1) && y0 <= y1) $
-    fastestDrawVStrip start (fromIntegral (y1 - y0)) (fromIntegral (pitch `div` 4)) (fromIntegral color) -- +1??
+    fastestDrawVStrip start (fromIntegral (y1 - y0 + 1)) (fromIntegral (pitch `div` 4)) (fromIntegral color)
     where lineSize = pitch
           start = plusPtr ptr ((y0 * lineSize) + (x*4))
           --end = plusPtr ptr ((y1 * lineSize) + (x*4))
