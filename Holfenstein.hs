@@ -116,7 +116,16 @@ slowTextureVStrip' horPos v@(VStrip x y0 y1 color) ptr pitch =
   mapM_ foo [cy0..cy1]
   where foo y = drawPoint (V2 x y) (sampler tx (ty y)) ptr pitch
         tx = floor (horPos * (fromIntegral textureWidth))
-        ty y = floor $ calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
+        fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
+
+        -- More accurate
+        --ty y = floor (fty y)
+
+        -- Messy
+        ty y = floor $ fty0 + ((fromIntegral (y - cy0)) * dfty)
+        fty0 = fty cy0
+        dfty = (fty 1) - (fty 0)
+
         -- clipped screen coords
         (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 color) -> (cy0, cy1)
 
