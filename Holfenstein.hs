@@ -31,6 +31,7 @@ import qualified SDL
 import System.Exit
 import System.IO
 
+import Gfx
 import Util
 
 -- #if !MIN_VERSION_base(4,8,0)
@@ -497,19 +498,9 @@ updateEyeAng (eye, ang) keySet = (newEye, newAng)
 
 main :: IO ()
 main = do
-  msp worldToScreen
-  --putStrLn $ show (map length world, nub (map length world))
-  --putStrLn $ show blah
-  --vroo
-  --putStrLn $ show $ multMV (V2 (V2 1.0 2.0) (V2 3.0 4.0)) (V2 10.0 100.0)
-  --let rm = rotMatrix (pi / 4)
-  --msp rm
-  --msp $ multMV rm (V2 1.0 0.0)
-  --msp $ multMV (rotMatrix (pi / 8)) (V2 1.0 0.0)
-  --msp $ multMV (rotMatrix (-(pi / 8))) (V2 1.0 0.0)
-  --msp $ multMV (rotMatrix ((3 * pi) / 4)) (V2 1.0 0.0)
-  --msp $ multMV (rotMatrix ((3 * pi) / 4)) (V2 0.0 1.0)
+  gfx 23
   --exitWith ExitSuccess
+  msp worldToScreen
 
   hSetBuffering stdout NoBuffering
   SDL.initialize [SDL.InitVideo]
