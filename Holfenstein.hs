@@ -384,6 +384,8 @@ renderWorld eye ang ptr pitch = castAndShowL eye dirs ptr pitch
 
 drawAll eye ang ptr pitch = do
   gfx ptr 23
+  nPtr <- gfx2 ptr 24
+  msp (ptr, nPtr, minusPtr nPtr ptr)
   clearCanvas2 ptr pitch
   renderWorld eye ang ptr pitch
   ifShowMap $ drawMap ptr pitch
