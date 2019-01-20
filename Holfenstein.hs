@@ -67,9 +67,11 @@ setAsRenderTarget r Nothing = SDL.rendererRenderTarget r $= Nothing
 setAsRenderTarget r (Just (Texture t _)) = SDL.rendererRenderTarget r $= Just t
 
 data Color = Color Int Int Int deriving Show
-white = Color 255 255 255
-lightGray = Color 200 200 200
-darkGray = Color 120 120 120
+
+type PackedColor = Word32
+white = packColor $ Color 255 255 255
+lightGray = packColor $ Color 200 200 200
+darkGray = packColor $ Color 120 120 120
 
 packColor :: Color -> Word32
 packColor (Color r g b) =
@@ -99,7 +101,7 @@ fastDrawVStrip (VStrip x y0 y1 color) ptr pitch = do
 
 drawVStrip = fastDrawVStrip
 
-drawLine :: Line Int -> Color -> Ptr Word32 -> Int -> IO ()
+drawLine :: Line Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
 drawLine (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
   where delta | isVert = V2 ((signum dx) * (abs (dx / dy))) (signum dy)
               | otherwise = V2 (signum dx) ((signum dy) * (abs (dy / dx)))
@@ -138,10 +140,10 @@ toOffset (V2 x y) pitch = y * (pitch `div` 4) + x
 
 inScreenBounds (V2 x y) = x >= 0 && y >= 0 && x < screenWidth && y < screenHeight
 
-drawPoint :: V2 Int -> Color -> Ptr Word32 -> Int -> IO ()
+drawPoint :: V2 Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
 drawPoint v c ptr pitch = do
   assertM (v, ptr, pitch) (inScreenBounds v)
-    pokeElemOff ptr (toOffset v pitch) (packColor c)
+    pokeElemOff ptr (toOffset v pitch) c
 
 toRad degrees = 2 * pi * ((fromIntegral degrees) / 360.0)
 
@@ -164,21 +166,9 @@ goof2 wordPtr pitch = do
   mapM_ writeFade [(x, y)
                       | x <- [0..((fromIntegral screenWidth :: Int)-1)]
                       , y <- [0..((fromIntegral screenHeight :: Int)-1)]]
-  drawPoint (V2 (screenWidth `div` 2) (screenHeight `div` 2)) (Color 255 255 255) wordPtr pitch
-  drawLine (Line (V2 100 100) (V2 200 150)) (Color 255 0 0) wordPtr pitch
-  drawLine (Line (V2 100 100) (V2 150 200)) (Color 255 0 0) wordPtr pitch
-  drawLine (Line (V2 209 159) (V2 109 109)) (Color 0 255 0) wordPtr pitch
-  drawLine (Line (V2 159 209) (V2 109 109)) (Color 0 255 0) wordPtr pitch
   --let dl (x, y) = drawLine (Line (V2 x y) (V2 320 240)) (Color 255 255 255) wordPtr pitch
    --in mapM_ dl ([(x, 200) | x <- [0, 10 .. 639]] ++
                 --[(x, 280) | x <- [0, 10 .. 639]])
-  return ()
-
-goof3 theta wordPtr pitch = do
-  let dl' (V2 x y) = drawLine (Line (V2 x y) (V2 320 240)) (Color 128 255 255) wordPtr pitch
-      step = 10
-      startAng = toRad $ fromIntegral $ (floor ((fromIntegral theta) / 10.0)) `mod` step
-   in mapM_ dl' [p + (V2 320 240) | p <- circlePoints 100 startAng (toRad step)]
   return ()
 
 data Line a = Line (V2 a) (V2 a) deriving Show
@@ -328,7 +318,7 @@ forDisplayF lines = map floorL (forDisplay lines)
 drawMap t = withFramebuffer t (drawLines map)
   where map = forDisplay $ allWalls world -- translateLines (V2 100 100) (scaleLines 50 allWalls)
 
-data VStrip = VStrip Int Int Int Color deriving Show
+data VStrip = VStrip Int Int Int PackedColor deriving Show
 
 --clipToScreen v | TR.trace (show v) False = undefined
 clipToScreen (VStrip x y0 y1 color) | y0 <= y1 =
@@ -537,7 +527,6 @@ main = do
       now <- getPOSIXTime 
       putStrLn $ "FPS " ++ (show $ 1.0 / (now - lastNow))
       --putStrLn $ "LOOP " ++ (show theta)
-      --withFramebuffer targetTexture $ goof3 theta
       --withFramebuffer targetTexture goof2
       withFramebuffer targetTexture clearCanvas2
       --let eye = (V2 1.1 1.1) + ((V2 20.0 15.0) * ((fromIntegral theta) / 360.0))
