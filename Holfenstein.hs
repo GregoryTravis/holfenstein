@@ -43,8 +43,8 @@ ifShowMap :: IO () -> IO ()
 ifShowMap io = if showMap then io else return ()
 
 screenWidth, screenHeight :: Int
-(screenWidth, screenHeight) = (640, 480)
---(screenWidth, screenHeight) = (320, 240)
+--(screenWidth, screenHeight) = (640, 480)
+(screenWidth, screenHeight) = (320, 240)
 
 data Texture = Texture SDL.Texture (V2 CInt)
 
@@ -92,18 +92,27 @@ withFramebuffer (Texture t _) f = do
   unlockTexture t
   return result
 
-{-
-slowTextureVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
-slowTextureVStrip v@(VStrip x y0 y1 color) ptr pitch
-  | y0 < 0 || y1 >= screenHeight = slowFillVStrip v ptr pitch
-  | otherwise = slowTextureVStrip' v ptr pitch
+drawVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
+drawVStrip horPos v@(VStrip x y0 y1 color) ptr pitch
+  | y0 < 0 || y1 >= screenHeight = fastestFillVStripH (clipToScreen v) ptr pitch
+  | otherwise = slowTextureVStrip' horPos v ptr pitch
 
 textureWidth = 64
 textureHeight = 64
 
-slowTextureVStrip' :: VStrip -> Ptr Word32 -> Int -> IO ()
-slowTextureVStrip' v@(VStrip x y0 y1 color) ptr pitch
--}
+sampler :: Int -> Int-> PackedColor
+sampler x y
+  | (isOdd x == isOdd y) = lightGray
+  | otherwise = darkGray
+  where checkSize = 8
+        isOdd x = (x `div` checkSize) `mod` 2
+
+slowTextureVStrip' :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
+slowTextureVStrip' horPos v@(VStrip x y0 y1 color) ptr pitch =
+  mapM_ foo [y0..y1]
+  where foo y = drawPoint (V2 x y) (sampler tx (ty y)) ptr pitch
+        tx = floor (horPos * (fromIntegral textureWidth))
+        ty y = floor (((fromIntegral (y - y0)) / (fromIntegral (y1 - y0))) * textureHeight)
 
 slowFillVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
 slowFillVStrip (VStrip x y0 y1 color) ptr pitch = drawLine (Line (V2 x y0) (V2 x y1)) color ptr pitch
@@ -136,7 +145,7 @@ fastestFillVStripH (VStrip x y0 y1 color) ptr pitch = do
           start = plusPtr ptr ((y0 * lineSize) + (x*4))
           --end = plusPtr ptr ((y1 * lineSize) + (x*4))
 
-drawVStrip = fastestFillVStripH
+fillVStrip = fastestFillVStripH
 
 drawLine :: Line Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
 drawLine (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
@@ -297,6 +306,9 @@ transposeHit (Hor x y) = Ver y x
 transposeHit (Ver x y) = Hor y x
 transposeMaybeHit (Just hit) = Just $ transposeHit hit
 transposeMaybeHit Nothing = Nothing
+-- x postition of hit relative to wall origin
+horPos (Hor x y) = case properFraction x of (_, hp) -> hp
+horPos (Ver x y) = case properFraction y of (_, hp) -> hp
 
 transposeV2 (V2 x y) = V2 y x
 
@@ -385,9 +397,10 @@ renderWorld eye ang ptr pitch = castAndShowL eye dirs ptr pitch
                                       (Ver _ _) -> darkGray
               let hh = wallHalfScreenHeight eye eyeDir (wallPtToV2 hit)
               let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) color
-              let clippedVStrip = clipToScreen unclippedVStrip
-              --msp ("hit", hit, hh, unclippedVStrip, clippedVStrip)
-              drawVStrip clippedVStrip ptr pitch
+              if False
+                then let clippedVStrip = clipToScreen unclippedVStrip
+                      in fillVStrip clippedVStrip ptr pitch
+                else drawVStrip (horPos hit) unclippedVStrip ptr pitch
             Nothing -> return ()
         castAndShowL eye dirs ptr pitch = do
           ifShowMap $ drawLines (forDisplayF (boxAround eye)) ptr pitch
