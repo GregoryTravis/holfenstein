@@ -383,6 +383,7 @@ renderWorld eye ang ptr pitch = castAndShowL eye dirs ptr pitch
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
 drawAll eye ang ptr pitch = do
+  gfx ptr 23
   clearCanvas2 ptr pitch
   renderWorld eye ang ptr pitch
   ifShowMap $ drawMap ptr pitch
@@ -498,7 +499,6 @@ updateEyeAng (eye, ang) keySet = (newEye, newAng)
 
 main :: IO ()
 main = do
-  gfx 23
   --exitWith ExitSuccess
   msp worldToScreen
 
