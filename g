@@ -1,3 +1,5 @@
+rm -f Holfenstein.prof
+
 #cabal configure -f examples
 #(cabal build lazyfoo-lesson-43 && dist/build/lazyfoo-lesson-43/lazyfoo-lesson-43) 2>&1 | tee out
 
