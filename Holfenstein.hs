@@ -115,7 +115,15 @@ fasterDrawVStrip (VStrip x y0 y1 color) ptr pitch = do
           start = plusPtr ptr ((y0 * lineSize) + (x*4))
           end = plusPtr ptr ((y1 * lineSize) + (x*4))
 
-drawVStrip = fasterDrawVStrip
+fastestDrawVStripH :: VStrip -> Ptr Word32 -> Int -> IO ()
+fastestDrawVStripH (VStrip x y0 y1 color) ptr pitch = do
+  assertM () (inScreenBounds (V2 x y0) && inScreenBounds (V2 x y1) && y0 <= y1) $
+    fastestDrawVStrip start (fromIntegral (y1 - y0)) (fromIntegral (pitch `div` 4)) (fromIntegral color) -- +1??
+    where lineSize = pitch
+          start = plusPtr ptr ((y0 * lineSize) + (x*4))
+          --end = plusPtr ptr ((y1 * lineSize) + (x*4))
+
+drawVStrip = fastestDrawVStripH
 
 drawLine :: Line Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
 drawLine (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
@@ -383,9 +391,9 @@ renderWorld eye ang ptr pitch = castAndShowL eye dirs ptr pitch
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
 drawAll eye ang ptr pitch = do
-  gfx ptr 23
-  nPtr <- gfx2 ptr 24
-  msp (ptr, nPtr, minusPtr nPtr ptr)
+  --gfx ptr 23
+  --nPtr <- gfx2 ptr 24
+  --msp (ptr, nPtr, minusPtr nPtr ptr)
   clearCanvas2 ptr pitch
   renderWorld eye ang ptr pitch
   ifShowMap $ drawMap ptr pitch
