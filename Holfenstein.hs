@@ -19,7 +19,7 @@ import qualified Debug.Trace as TR
 import Foreign.C.Types
 import Foreign.Marshal.Utils (fillBytes)
 import Foreign.Ptr
-import Foreign.Storable (peekElemOff, pokeElemOff)
+import Foreign.Storable (poke, peekElemOff, pokeElemOff)
 import Linear
 import Numeric (showHex)
 --import qualified SDL.Vect
@@ -99,7 +99,22 @@ fastDrawVStrip (VStrip x y0 y1 color) ptr pitch = do
   mapM_ foo [y0..y1]
   where foo y = drawPoint (V2 x y) color ptr pitch
 
-drawVStrip = fastDrawVStrip
+fasterDrawVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
+fasterDrawVStrip (VStrip x y0 y1 color) ptr pitch = do
+  assertM () (inScreenBounds (V2 x y0) && inScreenBounds (V2 x y1) && y0 <= y1)
+    foo start
+    where foo writePtr = 
+            if writePtr >= end
+              then
+                return ()
+              else do
+                poke writePtr color
+                foo (plusPtr writePtr lineSize)
+          lineSize = pitch
+          start = plusPtr ptr ((y0 * lineSize) + (x*4))
+          end = plusPtr ptr ((y1 * lineSize) + (x*4))
+
+drawVStrip = fasterDrawVStrip
 
 drawLine :: Line Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
 drawLine (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
@@ -139,6 +154,7 @@ boxAround center = box (center - boxOffset) (center + boxOffset)
 toOffset (V2 x y) pitch = y * (pitch `div` 4) + x
 
 inScreenBounds (V2 x y) = x >= 0 && y >= 0 && x < screenWidth && y < screenHeight
+--inScreenBounds _ = True
 
 drawPoint :: V2 Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
 drawPoint v c ptr pitch = do
