@@ -92,10 +92,7 @@ withFramebuffer (Texture t _) f = do
   unlockTexture t
   return result
 
-drawVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-drawVStrip horPos v@(VStrip x y0 y1 color) ptr pitch
-  | y0 < 0 || y1 >= screenHeight = fastestFillVStripH (clipToScreen v) ptr pitch
-  | otherwise = slowTextureVStrip' horPos v ptr pitch
+drawVStrip = slowTextureVStrip'
 
 textureWidth = 64
 textureHeight = 64
@@ -107,12 +104,21 @@ sampler x y
   where checkSize = 8
         isOdd x = (x `div` checkSize) `mod` 2
 
+calcTexCoord :: V2 Int -> V2 Double -> Int -> Double
+calcTexCoord (V2 sy0 sy1) (V2 ty0 ty1) sy =
+  ty0 + (((syf - sy0f) / (sy1f - sy0f)) * (ty1 - ty0))
+  where sy0f = fromIntegral sy0
+        sy1f = fromIntegral sy1
+        syf = fromIntegral sy
+
 slowTextureVStrip' :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
 slowTextureVStrip' horPos v@(VStrip x y0 y1 color) ptr pitch =
-  mapM_ foo [y0..y1]
+  mapM_ foo [cy0..cy1]
   where foo y = drawPoint (V2 x y) (sampler tx (ty y)) ptr pitch
         tx = floor (horPos * (fromIntegral textureWidth))
-        ty y = floor (((fromIntegral (y - y0)) / (fromIntegral (y1 - y0))) * textureHeight)
+        ty y = floor $ calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
+        -- clipped screen coords
+        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 color) -> (cy0, cy1)
 
 slowFillVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
 slowFillVStrip (VStrip x y0 y1 color) ptr pitch = drawLine (Line (V2 x y0) (V2 x y1)) color ptr pitch
