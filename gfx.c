@@ -14,3 +14,13 @@ int32_t sampler(int32_t x, int32_t y) {
   int check = ((x / CHECKSIZE) % 2) == ((y / CHECKSIZE) % 2) ? 0xff : 0x7f;
   return ((((x<<1)+0x80) & check) << 24) | (((((63-x)<<1)+0x80) & check) << 16) | ((((y<<1)+0x80) & check) << 8) | 0xff;
 }
+
+void fastestTextureVStrip(int32_t *start, int dPtr, int tx, int cy0, int cy1, double fty0, double dfty) {
+  int32_t *p = start;
+  double fty = fty0;
+  for (int cy = cy0; cy <= cy1; cy++) {
+    *p = sampler(tx, (int)fty);
+    p += dPtr;
+    fty += dfty;
+  }
+}

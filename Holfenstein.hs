@@ -30,6 +30,7 @@ import SDL (($=), unwrapKeycode, keysymKeycode, unwrapKeycode)
 import qualified SDL
 import System.Exit
 import System.IO
+--import Unsafe.Coerce
 
 import Gfx
 import Util
@@ -92,7 +93,7 @@ withFramebuffer (Texture t _) f = do
   unlockTexture t
   return result
 
-drawVStrip = textureVStrip
+drawVStrip = fastestTextureVStripH
 
 textureWidth = 64
 textureHeight = 64
@@ -160,6 +161,24 @@ textureVStrip horPos v@(VStrip x y0 y1 color) ptr pitch =
         dfty = (fty 1) - (fty 0)
         -- clipped screen coords
         (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 color) -> (cy0, cy1)
+
+-- Native
+fastestTextureVStripH :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
+fastestTextureVStripH horPos v@(VStrip x y0 y1 color) ptr pitch =
+  fastestTextureVStrip startPtr (fromIntegral dPtr) tx (fromIntegral cy0) (fromIntegral cy1) fty0 dfty
+  where startPtr = plusPtr ptr ((cy0 * pitch) + (x*4))
+        dPtr = pitch `div` 4
+        tx = floor (horPos * (fromIntegral textureWidth))
+        fty :: Int -> CDouble
+        fty y = realToFrac $ calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
+        fty0 :: CDouble
+        fty0 = fty cy0
+        dfty :: CDouble
+        dfty = (fty 1) - (fty 0)
+        -- clipped screen coords
+        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 color) -> (cy0, cy1)
+        --toCDouble :: Double -> CDouble
+        --toCDouble x = x + 0.0
 
 slowFillVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
 slowFillVStrip (VStrip x y0 y1 color) ptr pitch = drawLine (Line (V2 x y0) (V2 x y1)) color ptr pitch
