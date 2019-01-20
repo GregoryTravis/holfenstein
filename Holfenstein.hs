@@ -92,7 +92,7 @@ withFramebuffer (Texture t _) f = do
   unlockTexture t
   return result
 
-drawVStrip = slowTextureVStrip'
+drawVStrip = lessSlowTextureVStrip
 
 textureWidth = 64
 textureHeight = 64
@@ -111,8 +111,8 @@ calcTexCoord (V2 sy0 sy1) (V2 ty0 ty1) sy =
         sy1f = fromIntegral sy1
         syf = fromIntegral sy
 
-slowTextureVStrip' :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-slowTextureVStrip' horPos v@(VStrip x y0 y1 color) ptr pitch =
+slowTextureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
+slowTextureVStrip horPos v@(VStrip x y0 y1 color) ptr pitch =
   mapM_ foo [cy0..cy1]
   where foo y = drawPoint (V2 x y) (sampler tx (ty y)) ptr pitch
         tx = floor (horPos * (fromIntegral textureWidth))
@@ -123,6 +123,22 @@ slowTextureVStrip' horPos v@(VStrip x y0 y1 color) ptr pitch =
 
         -- Messy
         ty y = floor $ fty0 + ((fromIntegral (y - cy0)) * dfty)
+        fty0 = fty cy0
+        dfty = (fty 1) - (fty 0)
+
+        -- clipped screen coords
+        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 color) -> (cy0, cy1)
+
+-- Incrementally calculate ty
+lessSlowTextureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
+lessSlowTextureVStrip horPos v@(VStrip x y0 y1 color) ptr pitch =
+  loop cy0 fty0
+  --mapM_ foo [cy0..cy1]
+  where loop cy fty = do drawPoint (V2 x cy) (sampler tx (floor fty)) ptr pitch
+                         if cy < cy1 then loop (cy + 1) (fty + dfty) else return ()
+        --foo y = drawPoint (V2 x y) (sampler tx (ty y)) ptr pitch
+        tx = floor (horPos * (fromIntegral textureWidth))
+        fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
         fty0 = fty cy0
         dfty = (fty 1) - (fty 0)
 
