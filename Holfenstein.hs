@@ -118,10 +118,20 @@ clipTexCoords image x y =
                    | x >= b = b-1
                    | otherwise = x
 
+clipTexCoords' w h x y = (clip x 0 w, clip y 0 h)
+  where clip x a b | x < a = a
+                   | x >= b = b-1
+                   | otherwise = x
+
 hImageSampler :: Tex -> Int -> Int-> PackedColor
 --hImageSampler _ x y | TR.trace (show ("hIm", x, y)) False = undefined
 hImageSampler (Tex image _ _ _) x y = packPixel $ pixelAt image cx cy
   where (cx, cy) = clipTexCoords image x y
+
+fasterHImageSampler :: Tex -> Int -> Int-> IO PackedColor
+--hImageSampler _ x y | TR.trace (show ("hIm", x, y)) False = undefined
+fasterHImageSampler (Tex _ w h ptr) x y = peekElemOff ptr (cx + (w * cy))
+  where (cx, cy) = clipTexCoords' w h x y
 
 calcTexCoord :: V2 Int -> V2 Double -> Int -> Double
 calcTexCoord (V2 sy0 sy1) (V2 ty0 ty1) sy =
@@ -133,8 +143,8 @@ calcTexCoord (V2 sy0 sy1) (V2 ty0 ty1) sy =
 slowTextureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
 slowTextureVStrip horPos v@(VStrip x y0 y1 tex) ptr pitch =
   mapM_ foo [cy0..cy1]
-  --where foo y = do col <- sampler tx (ty y)
-  where foo y = do let col = hImageSampler tex tx (ty y)
+  where foo y = do col <- fasterHImageSampler tex tx (ty y)
+  --where foo y = do let col = hImageSampler tex tx (ty y)
                    drawPoint (V2 x y) (fromIntegral col) ptr pitch
         tx = floor (horPos * (fromIntegral textureWidth))
         fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
