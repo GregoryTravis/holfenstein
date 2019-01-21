@@ -655,10 +655,28 @@ horWallPush world o@(V2 ox oy) n@(V2 nx ny)
                 then fromIntegral (floor ny)
                 else fromIntegral (ceiling ny)
 
+verWallPush :: World -> V2 Double -> V2 Double -> V2 Double
+--horWallPush _ o n | TR.trace (show ("hw", o, n)) False = undefined
+--horWallPush _ o@(V2 ox oy) n@(V2 nx ny) | TR.trace (show ("hw", o, n, (nx - ox), (((fromIntegral (floor ny)) - oy) / (ny - oy)), ((fromIntegral (floor ny)) - oy), ((fromIntegral (floor ny)), oy), (ny - oy))) False = undefined
+verWallPush world o@(V2 ox oy) n@(V2 nx ny)
+  | o == n = n
+  | isSolid world (floor nx) (floor ny) = (V2 cnx cny)
+  | otherwise = n
+  where --cnx_ = if ny > oy
+         --       then ox + ((nx - ox) * (((fromIntegral (floor ny)) - oy) / (ny - oy)))
+          --      else ox + ((nx - ox) * (((fromIntegral (ceiling ny)) - oy) / (ny - oy)))
+        cny = ny
+        cnx = if nx > ox
+                then fromIntegral (floor nx)
+                else fromIntegral (ceiling nx)
+
 physics :: World -> V2 Double -> V2 Double -> V2 Double
-physics world oEye nEye
+physics world oEye@(V2 ox oy) nEye@(V2 nx ny)
   | oEye == nEye = nEye
-  | otherwise = (horWallPush world (oEye + pad) (nEye + pad)) - pad
+  | floor ox == floor nx = (horWallPush world (oEye + pad) (nEye + pad)) - pad
+  | floor oy == floor ny = (verWallPush world (oEye + pad) (nEye + pad)) - pad
+  | otherwise = let v = (verWallPush world (oEye + pad) (nEye + pad)) - pad
+                 in (horWallPush world (oEye + pad) (v + pad)) - pad
   where pad = 0.25 * (signorm (nEye - oEye))
 
 data Tex = Tex (Image PixelRGBA8) Int Int (Ptr Word32) --deriving Show
