@@ -5,28 +5,32 @@ module Main (main) where
 
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import Prelude hiding (any, mapM_)
+import Codec.Picture
 import Control.Exception.Base
 import Control.Monad hiding (mapM_)
 import Data.Bits
 import Data.Char (ord)
 import Data.Foldable hiding (elem)
 import Data.List (nub)
+import qualified Data.Map as M
 import Data.Maybe
 import Data.Ord
 import qualified Data.Set as S
 import Data.Word (Word32)
 import qualified Debug.Trace as TR
 import Foreign.C.Types
+import Foreign.Marshal.Alloc (mallocBytes)
 import Foreign.Marshal.Utils (fillBytes)
 import Foreign.Ptr
-import Foreign.Storable (poke, peekElemOff, pokeElemOff)
+import Foreign.Storable (peek, poke, peekElemOff, pokeElemOff)
 import Linear
 import Numeric (showHex)
---import qualified SDL.Vect
-import SDL.Event --(mouseMotionEventPos, EventPayload(MouseMotionEvent), MouseMotionEventData)
-import SDL.Vect
-import SDL.Video.Renderer (lockTexture, unlockTexture)
 import SDL (($=), unwrapKeycode, keysymKeycode, unwrapKeycode)
+import SDL.Event --(mouseMotionEventPos, EventPayload(MouseMotionEvent), MouseMotionEventData)
+--import SDL.Image
+import qualified SDL.Raw.Types as RT
+import SDL.Vect
+import qualified SDL.Video.Renderer as VR --(lockTexture, unlockTexture, surfacePixels, surfaceFormat, surfaceDimensions)
 import qualified SDL
 import System.Exit
 import System.IO
@@ -86,14 +90,15 @@ colorFade x y =
 
 withFramebuffer :: Texture -> (Ptr Word32 -> Int -> IO a) -> IO a
 withFramebuffer (Texture t _) f = do
-  (ptr, (CInt pitch)) <- lockTexture t Nothing
+  (ptr, (CInt pitch)) <- VR.lockTexture t Nothing
   let wordPtr :: Ptr Word32
       wordPtr = castPtr ptr
   result <- f wordPtr (fromIntegral pitch :: Int)
-  unlockTexture t
+  VR.unlockTexture t
   return result
 
-drawVStrip = fastestTextureVStripH
+--drawVStrip = fastestTextureVStripH
+drawVStrip = slowTextureVStrip
 
 textureWidth = 64
 textureHeight = 64
@@ -105,6 +110,19 @@ hSampler x y
   where checkSize = 8
         isOdd x = (x `div` checkSize) `mod` 2
 
+--clipTexCoords i x y | TR.trace (show ("clip", x, y)) False = undefined
+clipTexCoords image x y =
+  let Image { imageWidth = w, imageHeight = h } = image
+   in (clip x 0 w, clip y 0 h)
+  where clip x a b | x < a = a
+                   | x >= b = b-1
+                   | otherwise = x
+
+hImageSampler :: Tex -> Int -> Int-> PackedColor
+--hImageSampler _ x y | TR.trace (show ("hIm", x, y)) False = undefined
+hImageSampler (Tex image _ _ _) x y = packPixel $ pixelAt image cx cy
+  where (cx, cy) = clipTexCoords image x y
+
 calcTexCoord :: V2 Int -> V2 Double -> Int -> Double
 calcTexCoord (V2 sy0 sy1) (V2 ty0 ty1) sy =
   ty0 + (((syf - sy0f) / (sy1f - sy0f)) * (ty1 - ty0))
@@ -113,9 +131,10 @@ calcTexCoord (V2 sy0 sy1) (V2 ty0 ty1) sy =
         syf = fromIntegral sy
 
 slowTextureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-slowTextureVStrip horPos v@(VStrip x y0 y1 color) ptr pitch =
+slowTextureVStrip horPos v@(VStrip x y0 y1 tex) ptr pitch =
   mapM_ foo [cy0..cy1]
-  where foo y = do col <- sampler tx (ty y)
+  --where foo y = do col <- sampler tx (ty y)
+  where foo y = do let col = hImageSampler tex tx (ty y)
                    drawPoint (V2 x y) (fromIntegral col) ptr pitch
         tx = floor (horPos * (fromIntegral textureWidth))
         fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
@@ -129,11 +148,11 @@ slowTextureVStrip horPos v@(VStrip x y0 y1 color) ptr pitch =
         dfty = (fty 1) - (fty 0)
 
         -- clipped screen coords
-        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 color) -> (cy0, cy1)
+        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 tex) -> (cy0, cy1)
 
 -- Incrementally calculate ty
 lessSlowTextureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-lessSlowTextureVStrip horPos v@(VStrip x y0 y1 color) ptr pitch =
+lessSlowTextureVStrip horPos v@(VStrip x y0 y1 tex) ptr pitch =
   loop cy0 fty0
   --mapM_ foo [cy0..cy1]
   where loop cy fty = do col <- sampler tx (floor fty)
@@ -144,11 +163,11 @@ lessSlowTextureVStrip horPos v@(VStrip x y0 y1 color) ptr pitch =
         fty0 = fty cy0
         dfty = (fty 1) - (fty 0)
         -- clipped screen coords
-        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 color) -> (cy0, cy1)
+        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 tex) -> (cy0, cy1)
 
 -- Inline drawPoint
 textureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-textureVStrip horPos v@(VStrip x y0 y1 color) ptr pitch =
+textureVStrip horPos v@(VStrip x y0 y1 tex) ptr pitch =
   loop startPtr cy0 fty0
   where loop curPtr cy fty = do col <- sampler tx (floor fty)
                                 poke curPtr col
@@ -160,11 +179,11 @@ textureVStrip horPos v@(VStrip x y0 y1 color) ptr pitch =
         fty0 = fty cy0
         dfty = (fty 1) - (fty 0)
         -- clipped screen coords
-        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 color) -> (cy0, cy1)
+        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 tex) -> (cy0, cy1)
 
 -- Native
 fastestTextureVStripH :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-fastestTextureVStripH horPos v@(VStrip x y0 y1 color) ptr pitch =
+fastestTextureVStripH horPos v@(VStrip x y0 y1 tex) ptr pitch =
   fastestTextureVStrip startPtr (fromIntegral dPtr) tx (fromIntegral cy0) (fromIntegral cy1) fty0 dfty
   where startPtr = plusPtr ptr ((cy0 * pitch) + (x*4))
         dPtr = pitch `div` 4
@@ -176,20 +195,20 @@ fastestTextureVStripH horPos v@(VStrip x y0 y1 color) ptr pitch =
         dfty :: CDouble
         dfty = (fty 1) - (fty 0)
         -- clipped screen coords
-        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 color) -> (cy0, cy1)
+        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 tex) -> (cy0, cy1)
         --toCDouble :: Double -> CDouble
         --toCDouble x = x + 0.0
 
 slowFillVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
-slowFillVStrip (VStrip x y0 y1 color) ptr pitch = drawLine (Line (V2 x y0) (V2 x y1)) color ptr pitch
+slowFillVStrip (VStrip x y0 y1 tex) ptr pitch = drawLine (Line (V2 x y0) (V2 x y1)) white ptr pitch
 
 fastFillVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
-fastFillVStrip (VStrip x y0 y1 color) ptr pitch = do
+fastFillVStrip (VStrip x y0 y1 tex) ptr pitch = do
   mapM_ foo [y0..y1]
-  where foo y = drawPoint (V2 x y) color ptr pitch
+  where foo y = drawPoint (V2 x y) white ptr pitch
 
 fasterFillVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
-fasterFillVStrip (VStrip x y0 y1 color) ptr pitch = do
+fasterFillVStrip (VStrip x y0 y1 tex) ptr pitch = do
   assertM () (inScreenBounds (V2 x y0) && inScreenBounds (V2 x y1) && y0 <= y1)
     foo start
     where foo writePtr = 
@@ -197,16 +216,16 @@ fasterFillVStrip (VStrip x y0 y1 color) ptr pitch = do
               then
                 return ()
               else do
-                poke writePtr color
+                poke writePtr white
                 foo (plusPtr writePtr lineSize)
           lineSize = pitch
           start = plusPtr ptr ((y0 * lineSize) + (x*4))
           end = plusPtr ptr ((y1 * lineSize) + (x*4))
 
 fastestFillVStripH :: VStrip -> Ptr Word32 -> Int -> IO ()
-fastestFillVStripH (VStrip x y0 y1 color) ptr pitch = do
+fastestFillVStripH (VStrip x y0 y1 tex) ptr pitch = do
   assertM () (inScreenBounds (V2 x y0) && inScreenBounds (V2 x y1) && y0 <= y1) $
-    fastestFillVStrip start (fromIntegral (y1 - y0 + 1)) (fromIntegral (pitch `div` 4)) (fromIntegral color)
+    fastestFillVStrip start (fromIntegral (y1 - y0 + 1)) (fromIntegral (pitch `div` 4)) (fromIntegral white)
     where lineSize = pitch
           start = plusPtr ptr ((y0 * lineSize) + (x*4))
           --end = plusPtr ptr ((y1 * lineSize) + (x*4))
@@ -333,6 +352,11 @@ transposeAA xs = (map head xs) : transposeAA (map tail xs)
 
 type World = [[Bool]]
 
+--data WorldTexMap = WorldTexMap (M.Map Char Tex)
+-- Just one texture in the world for now
+data WorldTexMap = WorldTexMap Tex
+getTex (WorldTexMap t) = t
+
 world :: World
 world = map (\col -> map isWall col) (transposeAA worldMap)
   where 
@@ -375,6 +399,8 @@ transposeMaybeHit Nothing = Nothing
 -- x postition of hit relative to wall origin
 horPos (Hor x y) = case properFraction x of (_, hp) -> hp
 horPos (Ver x y) = case properFraction y of (_, hp) -> hp
+
+--getWallTex :: WallPt -> World Tex
 
 transposeV2 (V2 x y) = V2 y x
 
@@ -434,16 +460,16 @@ forDisplayF lines = map floorL (forDisplay lines)
 drawMap = drawLines map
   where map = forDisplay $ allWalls world -- translateLines (V2 100 100) (scaleLines 50 allWalls)
 
-data VStrip = VStrip Int Int Int PackedColor deriving Show
+data VStrip = VStrip Int Int Int Tex --deriving Show
 
 --clipToScreen v | TR.trace (show v) False = undefined
-clipToScreen (VStrip x y0 y1 color) | y0 <= y1 =
-  VStrip x (max 0 y0) (min (screenHeight - 1) y1) color
+clipToScreen (VStrip x y0 y1 tex) | y0 <= y1 =
+  VStrip x (max 0 y0) (min (screenHeight - 1) y1) tex
 
 fal xs = [head xs, last xs]
 
 --thing t = withFramebuffer t $ castAndShow (V2 1.5 1.5) (V2 1.0 0.5)
-renderWorld eye ang ptr pitch = castAndShowL eye dirs ptr pitch
+renderWorld worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where castAndShow eye dir ptr pitch = do
           let hit = castRay world eye (signorm dir)
           --ifShowMap $ mapM_ (\pt -> drawLines (forDisplayF (boxAround pt)) ptr pitch) (fal vpps)
@@ -459,10 +485,9 @@ renderWorld eye ang ptr pitch = castAndShowL eye dirs ptr pitch
           hit <- castAndShow eye dir ptr pitch
           case hit of
             Just hit -> do
-              let color = case hit of (Hor _ _) -> lightGray
-                                      (Ver _ _) -> darkGray
+              let tex = getTex worldTexMap
               let hh = wallHalfScreenHeight eye eyeDir (wallPtToV2 hit)
-              let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) color
+              let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) tex
               if False
                 then let clippedVStrip = clipToScreen unclippedVStrip
                       in fillVStrip clippedVStrip ptr pitch
@@ -482,12 +507,12 @@ renderWorld eye ang ptr pitch = castAndShowL eye dirs ptr pitch
         --dirs = [V2 (-0.9) (-1.0)]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
-drawAll eye ang ptr pitch = do
+drawAll worldTexMap eye ang ptr pitch = do
   --gfx ptr 23
   --nPtr <- gfx2 ptr 24
   --msp (ptr, nPtr, minusPtr nPtr ptr)
   clearCanvas2 ptr pitch
-  renderWorld eye ang ptr pitch
+  renderWorld worldTexMap eye ang ptr pitch
   ifShowMap $ drawMap ptr pitch
 
 vroo = do
@@ -599,10 +624,28 @@ updateEyeAng (eye, ang) keySet = (newEye, newAng)
                           else eye
         forwards = multMV (rotMatrix ang) (V2 1.0 0.0)
 
+data Tex = Tex (Image PixelRGBA8) Int Int (Ptr Word32) --deriving Show
+
+packPixel (PixelRGBA8 r g b a) = packColor (Color (fromIntegral r) (fromIntegral g) (fromIntegral b))
+
+readTex :: String -> IO Tex
+readTex fileName = do
+  res <- readImage fileName
+  let image = case res of (Right image) -> convertRGBA8 $ image
+  let Image { imageWidth = w, imageHeight = h } = image
+  msp ("im", w, h)
+  mem <- mallocBytes (w * h * 4) :: IO (Ptr Word32)
+  mapM_ (copy image mem w) [(x, y) | x <- [0..w-1], y <- [0..h-1]]
+  return $ Tex image w h mem
+  where copy image mem w (x, y) = do pokeElemOff mem (x + (y * w)) (packPixel (pixelAt image x y))
+
 main :: IO ()
 main = do
+  tex <- readTex "images/stucco-64.png"
   --exitWith ExitSuccess
   msp worldToScreen
+
+  let worldTexMap = WorldTexMap tex
 
   hSetBuffering stdout NoBuffering
   SDL.initialize [SDL.InitVideo]
@@ -658,7 +701,7 @@ main = do
                                             Nothing -> kEye
       --let ang = prevAng
       --msp $ ("ang", ang)
-      withFramebuffer targetTexture $ drawAll eye ang
+      withFramebuffer targetTexture $ drawAll worldTexMap eye ang
       --thang eye ang targetTexture
       --bong eye targetTexture
 
