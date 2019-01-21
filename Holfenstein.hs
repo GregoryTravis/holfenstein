@@ -641,7 +641,7 @@ updateEyeAng (eye, ang) keySet = (newEye, newAng)
         forwards = multMV (rotMatrix ang) (V2 1.0 0.0)
 
 horWallPush :: World -> V2 Double -> V2 Double -> V2 Double
---horWallPush _ o n | TR.trace (show ("hw", o, n)) False = undefined
+horWallPush _ o n | TR.trace (show ("hw", o, n)) False = undefined
 horWallPush world o@(V2 ox oy) n@(V2 nx ny)
   | o == n = n
   | isSolid world (floor nx) (floor ny) = (V2 cnx cny)
@@ -654,9 +654,10 @@ horWallPush world o@(V2 ox oy) n@(V2 nx ny)
                 else fromIntegral (ceiling ny)
 
 physics :: World -> V2 Double -> V2 Double -> V2 Double
-physics world oEye nEye = horWallPush world oEye nEye
-  --let (V2 x y) = floorV nEye
-   --in isSolid world x y
+physics world oEye nEye
+  | oEye == nEye = nEye
+  | otherwise = (horWallPush world (oEye + pad) (nEye + pad)) - pad
+  where pad = 0.25 * (signorm (nEye - oEye))
 
 data Tex = Tex (Image PixelRGBA8) Int Int (Ptr Word32) --deriving Show
 
@@ -774,7 +775,7 @@ main = do
 
       unless quit (loop now (theta + 2 `mod` 360) eye ang newKeySet)
 
-  loop startNow (0 :: Int) (V2 1.6 5.3) (pi / 4) S.empty
+  loop startNow (0 :: Int) (V2 1.6 5.3) (pi / 2) S.empty
 
   SDL.destroyWindow window
   SDL.quit
