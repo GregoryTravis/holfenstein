@@ -641,14 +641,16 @@ updateEyeAng (eye, ang) keySet = (newEye, newAng)
         forwards = multMV (rotMatrix ang) (V2 1.0 0.0)
 
 horWallPush :: World -> V2 Double -> V2 Double -> V2 Double
-horWallPush _ o n | TR.trace (show ("hw", o, n)) False = undefined
+--horWallPush _ o n | TR.trace (show ("hw", o, n)) False = undefined
+horWallPush _ o@(V2 ox oy) n@(V2 nx ny) | TR.trace (show ("hw", o, n, (nx - ox), (((fromIntegral (floor ny)) - oy) / (ny - oy)), ((fromIntegral (floor ny)) - oy), ((fromIntegral (floor ny)), oy), (ny - oy))) False = undefined
 horWallPush world o@(V2 ox oy) n@(V2 nx ny)
   | o == n = n
   | isSolid world (floor nx) (floor ny) = (V2 cnx cny)
   | otherwise = n
-  where cnx = if ny > oy
-                then ox + ((nx - ox) * (((fromIntegral (floor ny)) - oy) / (ny - oy)))
-                else ox + ((nx - ox) * (((fromIntegral (ceiling ny)) - oy) / (ny - oy)))
+  where --cnx_ = if ny > oy
+         --       then ox + ((nx - ox) * (((fromIntegral (floor ny)) - oy) / (ny - oy)))
+          --      else ox + ((nx - ox) * (((fromIntegral (ceiling ny)) - oy) / (ny - oy)))
+        cnx = nx
         cny = if ny > oy
                 then fromIntegral (floor ny)
                 else fromIntegral (ceiling ny)
