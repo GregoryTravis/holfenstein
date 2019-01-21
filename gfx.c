@@ -15,11 +15,22 @@ int32_t sampler(int32_t x, int32_t y) {
   return ((((x<<1)+0x80) & check) << 24) | (((((63-x)<<1)+0x80) & check) << 16) | ((((y<<1)+0x80) & check) << 8) | 0xff;
 }
 
-void fastestTextureVStrip(int32_t *start, int dPtr, int tx, int cy0, int cy1, double fty0, double dfty) {
+void fastestTextureVStrip(int32_t *start, int32_t *texPtr, int texWid, int texHt, int dPtr, int tx, int cy0, int cy1, double fty0, double dfty) {
   int32_t *p = start;
   double fty = fty0;
   for (int cy = cy0; cy <= cy1; cy++) {
-    *p = sampler(tx, (int)fty);
+    int ty = (int)fty;
+    if (tx < 0) {
+      tx = 0;
+    } else if (tx >= texWid) {
+      tx = texWid-1;
+    }
+    if (ty < 0) {
+      ty = 0;
+    } else if (ty >= texHt) {
+      ty = texHt-1;
+    }
+    *p = *(texPtr + tx + (ty * texWid));
     p += dPtr;
     fty += dfty;
   }

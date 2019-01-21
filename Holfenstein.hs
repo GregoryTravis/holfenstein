@@ -97,8 +97,8 @@ withFramebuffer (Texture t _) f = do
   VR.unlockTexture t
   return result
 
---drawVStrip = fastestTextureVStripH
-drawVStrip = slowTextureVStrip
+drawVStrip = fastestTextureVStripH
+--drawVStrip = slowTextureVStrip
 
 textureWidth = 64
 textureHeight = 64
@@ -193,8 +193,8 @@ textureVStrip horPos v@(VStrip x y0 y1 tex) ptr pitch =
 
 -- Native
 fastestTextureVStripH :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-fastestTextureVStripH horPos v@(VStrip x y0 y1 tex) ptr pitch =
-  fastestTextureVStrip startPtr (fromIntegral dPtr) tx (fromIntegral cy0) (fromIntegral cy1) fty0 dfty
+fastestTextureVStripH horPos v@(VStrip x y0 y1 (Tex _ w h texPtr)) ptr pitch =
+  fastestTextureVStrip startPtr texPtr (fromIntegral w) (fromIntegral h) (fromIntegral dPtr) tx (fromIntegral cy0) (fromIntegral cy1) fty0 dfty
   where startPtr = plusPtr ptr ((cy0 * pitch) + (x*4))
         dPtr = pitch `div` 4
         tx = floor (horPos * (fromIntegral textureWidth))
