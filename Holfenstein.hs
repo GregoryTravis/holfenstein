@@ -313,6 +313,8 @@ goof2 wordPtr pitch = do
                 --[(x, 280) | x <- [0, 10 .. 639]])
   return ()
 
+floorV (V2 x y) = V2 (floor x) (floor y)
+
 data Line a = Line (V2 a) (V2 a) deriving Show
 scale :: Num a => V2 a -> Line a -> Line a
 scale s (Line a b) = Line (s * a) (s * b)
@@ -465,7 +467,6 @@ forDisplay lines =
 forDisplayF :: [Line Double] -> [Line Int]
 forDisplayF lines = map floorL (forDisplay lines)
   where floorL (Line a b) = Line (floorV a) (floorV b)
-        floorV (V2 x y) = V2 (floor x) (floor y)
 
 drawMap = drawLines map
   where map = forDisplay $ allWalls world -- translateLines (V2 100 100) (scaleLines 50 allWalls)
@@ -504,7 +505,6 @@ renderWorld worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
                 else drawVStrip (horPos hit) unclippedVStrip ptr pitch
             Nothing -> return ()
         castAndShowL eye dirs ptr pitch = do
-          ifShowMap $ drawLines (forDisplayF (boxAround eye)) ptr pitch
           mapM_ (\(x, dir) -> renderWall x eye dir ptr pitch) (zip [0..] dirs)
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
         --dirs = circlePointsF 1.0 0 (pi / 32)
@@ -517,6 +517,11 @@ renderWorld worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
         --dirs = [V2 (-0.9) (-1.0)]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
+drawEye eye ang ptr pitch = do
+  drawLines (forDisplayF (boxAround eye)) ptr pitch
+  drawLines (forDisplayF [eyeLine]) ptr pitch
+  where eyeLine = Line eye (eye + angToDir ang)
+
 drawAll worldTexMap eye ang ptr pitch = do
   --gfx ptr 23
   --nPtr <- gfx2 ptr 24
@@ -524,6 +529,7 @@ drawAll worldTexMap eye ang ptr pitch = do
   clearCanvas2 ptr pitch
   renderWorld worldTexMap eye ang ptr pitch
   ifShowMap $ drawMap ptr pitch
+  ifShowMap $ drawEye eye ang ptr pitch
 
 vroo = do
   putStrLn $ show $ V2 3.4 4.5
@@ -634,6 +640,24 @@ updateEyeAng (eye, ang) keySet = (newEye, newAng)
                           else eye
         forwards = multMV (rotMatrix ang) (V2 1.0 0.0)
 
+horWallPush :: World -> V2 Double -> V2 Double -> V2 Double
+--horWallPush _ o n | TR.trace (show ("hw", o, n)) False = undefined
+horWallPush world o@(V2 ox oy) n@(V2 nx ny)
+  | o == n = n
+  | isSolid world (floor nx) (floor ny) = (V2 cnx cny)
+  | otherwise = n
+  where cnx = if ny > oy
+                then ox + ((nx - ox) * (((fromIntegral (floor ny)) - oy) / (ny - oy)))
+                else ox + ((nx - ox) * (((fromIntegral (ceiling ny)) - oy) / (ny - oy)))
+        cny = if ny > oy
+                then fromIntegral (floor ny)
+                else fromIntegral (ceiling ny)
+
+physics :: World -> V2 Double -> V2 Double -> V2 Double
+physics world oEye nEye = horWallPush world oEye nEye
+  --let (V2 x y) = floorV nEye
+   --in isSolid world x y
+
 data Tex = Tex (Image PixelRGBA8) Int Int (Ptr Word32) --deriving Show
 
 packPixel (PixelRGBA8 r g b a) = packColor (Color (fromIntegral r) (fromIntegral g) (fromIntegral b))
@@ -692,7 +716,7 @@ main = do
 
     loop lastNow theta prevEye prevAng keySet = do
       now <- getPOSIXTime 
-      putStrLn $ "FPS " ++ (show $ 1.0 / (now - lastNow))
+      --putStrLn $ "FPS " ++ (show $ 1.0 / (now - lastNow))
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture goof2
       --let eye = (V2 1.1 1.1) + ((V2 20.0 15.0) * ((fromIntegral theta) / 360.0))
@@ -707,8 +731,12 @@ main = do
 
       --putStrLn $ show $ eye
       let (kEye, ang) = updateEyeAng (prevEye, prevAng) newKeySet
-      let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then kEye else (V2 x y))
-                                            Nothing -> kEye
+      let pEye = physics world prevEye kEye
+      if pEye /= kEye
+        then msp ("fiz", prevEye, kEye, pEye)
+        else return ()
+      let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then pEye else (V2 x y))
+                                            Nothing -> pEye
       --let ang = prevAng
       --msp $ ("ang", ang)
       withFramebuffer targetTexture $ drawAll worldTexMap eye ang
