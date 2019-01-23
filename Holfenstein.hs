@@ -18,6 +18,7 @@ import Data.Ord
 import qualified Data.Set as S
 import Data.Word (Word32)
 import qualified Debug.Trace as TR
+import System.Directory
 import Foreign.C.Types
 import Foreign.Marshal.Alloc (mallocBytes)
 import Foreign.Marshal.Utils (fillBytes)
@@ -665,7 +666,9 @@ physics world oEye@(V2 ox oy) nEye@(V2 nx ny) = V2 cnx cny
                   else ny
     
 
-data Tex = Tex (Image PixelRGBA8) Int Int (Ptr Word32) --deriving Show
+data Tex = Tex (Image PixelRGBA8) Int Int (Ptr Word32)
+--instance Show Tex =
+  --show (Tex _ w h _) = show (w, h)
 
 packPixel (PixelRGBA8 r g b a) = packColor (Color (fromIntegral r) (fromIntegral g) (fromIntegral b))
 
@@ -680,8 +683,20 @@ readTex fileName = do
   return $ Tex image w h mem
   where copy image mem w (x, y) = do pokeElemOff mem (x + (y * w)) (packPixel (pixelAt image x y))
 
+{-
+readTexes :: IO (M.Map Char Tex)
+readTexes = do
+  files <- listDirectory "images"
+  texes <- mapM readTex files
+  return $ M.fromList [(head file, tex) | (file, tex) <- zip files texes]
+-}
+
 main :: IO ()
 main = do
+  --files <- listDirectory "images"
+  --putStrLn $ show files
+  --texes <- readTexes
+  --putStrLn $ show texes
   tex <- readTex "images/stucco-64.png"
   --exitWith ExitSuccess
   msp worldToScreen
