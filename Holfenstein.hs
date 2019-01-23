@@ -640,44 +640,30 @@ updateEyeAng (eye, ang) keySet = (newEye, newAng)
                           else eye
         forwards = multMV (rotMatrix ang) (V2 1.0 0.0)
 
-horWallPush :: World -> V2 Double -> V2 Double -> V2 Double
---horWallPush _ o n | TR.trace (show ("hw", o, n)) False = undefined
-horWallPush _ o@(V2 ox oy) n@(V2 nx ny) | TR.trace (show ("hw", o, n, (nx - ox), (((fromIntegral (floor ny)) - oy) / (ny - oy)), ((fromIntegral (floor ny)) - oy), ((fromIntegral (floor ny)), oy), (ny - oy))) False = undefined
-horWallPush world o@(V2 ox oy) n@(V2 nx ny)
-  | o == n = n
-  | isSolid world (floor nx) (floor ny) = (V2 cnx cny)
-  | otherwise = n
-  where --cnx_ = if ny > oy
-         --       then ox + ((nx - ox) * (((fromIntegral (floor ny)) - oy) / (ny - oy)))
-          --      else ox + ((nx - ox) * (((fromIntegral (ceiling ny)) - oy) / (ny - oy)))
-        cnx = nx
-        cny = if ny > oy
-                then fromIntegral (floor ny)
-                else fromIntegral (ceiling ny)
-
-verWallPush :: World -> V2 Double -> V2 Double -> V2 Double
---horWallPush _ o n | TR.trace (show ("hw", o, n)) False = undefined
---horWallPush _ o@(V2 ox oy) n@(V2 nx ny) | TR.trace (show ("hw", o, n, (nx - ox), (((fromIntegral (floor ny)) - oy) / (ny - oy)), ((fromIntegral (floor ny)) - oy), ((fromIntegral (floor ny)), oy), (ny - oy))) False = undefined
-verWallPush world o@(V2 ox oy) n@(V2 nx ny)
-  | o == n = n
-  | isSolid world (floor nx) (floor ny) = (V2 cnx cny)
-  | otherwise = n
-  where --cnx_ = if ny > oy
-         --       then ox + ((nx - ox) * (((fromIntegral (floor ny)) - oy) / (ny - oy)))
-          --      else ox + ((nx - ox) * (((fromIntegral (ceiling ny)) - oy) / (ny - oy)))
-        cny = ny
-        cnx = if nx > ox
-                then fromIntegral (floor nx)
-                else fromIntegral (ceiling nx)
-
 physics :: World -> V2 Double -> V2 Double -> V2 Double
-physics world oEye@(V2 ox oy) nEye@(V2 nx ny)
-  | oEye == nEye = nEye
-  | floor ox == floor nx = (horWallPush world (oEye + pad) (nEye + pad)) - pad
-  | floor oy == floor ny = (verWallPush world (oEye + pad) (nEye + pad)) - pad
-  | otherwise = let v = (verWallPush world (oEye + pad) (nEye + pad)) - pad
-                 in (horWallPush world (oEye + pad) (v + pad)) - pad
-  where pad = 0.25 * (signorm (nEye - oEye))
+physics world oEye@(V2 ox oy) nEye@(V2 nx ny) = V2 cnx cny
+  where (V2 ex ey) = floorV nEye
+        nSolid = isSolid world ex ey
+        lSolid = isSolid world (ex-1) ey
+        rSolid = isSolid world (ex+1) ey
+        dSolid = isSolid world ex (ey-1)
+        uSolid = isSolid world ex (ey+1)
+        margin = 0.25
+        lMargin = ((fromIntegral ex) + margin)
+        rMargin = ((fromIntegral (ex+1)) - margin)
+        dMargin = ((fromIntegral ey) + margin)
+        uMargin = ((fromIntegral (ey+1)) - margin)
+        cnx = if lSolid && nx < lMargin
+                then lMargin
+                else if rSolid && nx > rMargin
+                  then rMargin
+                  else nx
+        cny = if dSolid && ny < dMargin
+                then dMargin
+                else if uSolid && ny > uMargin
+                  then uMargin
+                  else ny
+    
 
 data Tex = Tex (Image PixelRGBA8) Int Int (Ptr Word32) --deriving Show
 
