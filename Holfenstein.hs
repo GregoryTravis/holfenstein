@@ -338,6 +338,17 @@ type World = [[Char]]
 
 worldMap :: World
 worldMap = [
+  "ssssssssssssssssssssssssssssssssssssssssssssssssss",
+  "sssssssggggggggggggggggggggggggggggggsssss sssssss",
+  "sssssssg                     ggggggggsssss sssssss",
+  "sssssssg ggggggggggggggggggggggggggggsssss sssssss",
+  "sssssssg gssssssssssssssssssssssssssssssss sssssss",
+  "sssssssg gsssssssssssssssssssssssssssss      sssss",
+  "sssssssg gssssss      sssssssss    ssss       gsss",
+  "sssssssg                                      gsss",
+  "sssssssgssssssss sssss   ssssss    ssss      sssss",
+  "ssssssssssssssssssssssssssssssssssssssssssssssssss" ]
+worldMap4 = [
   "sssssssssss",
   "s       s s",
   "s       s s",
