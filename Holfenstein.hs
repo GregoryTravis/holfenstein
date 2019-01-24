@@ -367,11 +367,26 @@ transposeAA xs = (map head xs) : transposeAA (map tail xs)
 
 -- Just one texture in the world for now
 data WorldTexMap = WorldTexMap (M.Map Char Tex)
-getTexForHit w h (WorldTexMap t) | TR.trace (show ("gT", h, t, floorV $ wallPtToV2 h, (case (floorV $ wallPtToV2 h) of (V2 x y) -> getMaterial world x y))) False = undefined
---getTexForHit world hit (WorldTexMap t) = fromJust $ M.lookup texChar t
-  --where texChar = getMaterial world x y
+--getTexForHit w h (WorldTexMap t) | TR.trace (show ("gT", h, t, floorV $ wallPtToV2 h, (case (floorV $ wallPtToV2 h) of (V2 x y) -> getMaterial world x y))) False = undefined
+getTexForHit world hit (WorldTexMap t) = fromJust $ M.lookup texChar t
+  where texChar = case solidOf (sidesOf hit) of (x, y) -> getMaterial world x y
+        -- Non-exhaustive cases: we assert here that exactly one side of the hit is solid
+        solidOf ((x0, y0), (x1, y1))
+          | solid0 && (not solid1) = (x0, y0)
+          | (not solid0) && solid1 = (x1, y1)
+          where solid0 = isSolid world x0 y0
+                solid1 = isSolid world x1 y1
+        sidesOf (Hor fx y) = let x = floor fx in ((x, y-1), (x, y))
+        sidesOf (Ver x fy) = let y = floor fy in ((x-1, y), (x, y))
+        --materialOf world (Hor fx y)
+          -- | isSolid world x (y-1) && (! (isSolid world x y)) = getMaterial world x (y-1)
+          -- | (! (isSolid world x (y-1))) && isSolid world x y = getMaterial world x y
+        --materialOf world (Hor fx y)
+          -- | isSolid world x (y-1) && (! (isSolid world x y)) = getMaterial world x (y-1)
+          -- | (! (isSolid world x (y-1))) && isSolid world x y = getMaterial world x y
+          --where x = floor fx
         --(V2 x y) = floorV $ wallPtToV2 hit
-getTexForHit world hit (WorldTexMap t) = fromJust $ M.lookup 's' t
+--getTexForHit world hit (WorldTexMap t) = fromJust $ M.lookup 's' t
 
 world = transposeAA worldMap
 worldTransposed = transposeAA world
@@ -393,7 +408,7 @@ isVerWall world x y = (isSolid world (x - 1) y) /= (isSolid world x y)
 isSolid :: World -> Int -> Int -> Bool
 --isSolid x y | TR.trace (show ("iS", x, y, (length world), worldSize, (outsideWorld x y))) False = undefined
 isSolid world x y = (getMaterial world x y) /= ' '
-getMaterial w x y | TR.trace (show ("gM", x, y)) False = undefined
+--getMaterial w x y | TR.trace (show ("gM", x, y)) False = undefined
 getMaterial world x y
   | outsideWorld world x y = ' '
   | otherwise = ((world !! x) !! y)
