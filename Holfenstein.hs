@@ -338,39 +338,42 @@ type World = [[Char]]
 
 worldMap :: World
 worldMap = [
-  "###########",
-  "#       # #",
-  "#       # #",
-  "#    #    #",
-  "# #       #",
-  "# #       #",
-  "###########" ]
+  "sssssssssss",
+  "s       s s",
+  "s       s s",
+  "s    g    s",
+  "s s       s",
+  "s s       s",
+  "sssssssssss" ]
 worldMap___ = [
-  "########",
-  "#    # #",
-  "#    # #",
-  "# #    #",
-  "# #    #",
-  "########" ]
+  "ssssssss",
+  "s    s s",
+  "s    s s",
+  "s s    s",
+  "s s    s",
+  "ssssssss" ]
 worldMap__ = [
-  "###",
-  "  #",
-  "###"]
+  "sss",
+  "  s",
+  "sss"]
 worldMap_ = [
-  "####",
-  "#  #",
-  "#  #",
-  "## #"]
+  "ssss",
+  "s  s",
+  "s  s",
+  "ss s"]
 
 transposeAA ([]:_) = []
 transposeAA xs = (map head xs) : transposeAA (map tail xs)
 
---data WorldTexMap = WorldTexMap (M.Map Char Tex)
 -- Just one texture in the world for now
-data WorldTexMap = WorldTexMap Tex
-getTex (WorldTexMap t) = t
+data WorldTexMap = WorldTexMap (M.Map Char Tex)
+getTexForHit w h (WorldTexMap t) | TR.trace (show ("gT", h, t, floorV $ wallPtToV2 h, (case (floorV $ wallPtToV2 h) of (V2 x y) -> getMaterial world x y))) False = undefined
+--getTexForHit world hit (WorldTexMap t) = fromJust $ M.lookup texChar t
+  --where texChar = getMaterial world x y
+        --(V2 x y) = floorV $ wallPtToV2 hit
+getTexForHit world hit (WorldTexMap t) = fromJust $ M.lookup 's' t
 
-world = worldMap
+world = transposeAA worldMap
 worldTransposed = transposeAA world
 
 allSameLength xs = length (nub (map length xs)) == 1
@@ -389,9 +392,11 @@ isHorWall world x y = (isSolid world x (y - 1)) /= (isSolid world x y)
 isVerWall world x y = (isSolid world (x - 1) y) /= (isSolid world x y)
 isSolid :: World -> Int -> Int -> Bool
 --isSolid x y | TR.trace (show ("iS", x, y, (length world), worldSize, (outsideWorld x y))) False = undefined
-isSolid world x y
-  | outsideWorld world x y = False
-  | otherwise = ((world !! x) !! y) /= ' '
+isSolid world x y = (getMaterial world x y) /= ' '
+getMaterial w x y | TR.trace (show ("gM", x, y)) False = undefined
+getMaterial world x y
+  | outsideWorld world x y = ' '
+  | otherwise = ((world !! x) !! y)
 
 horToLine x y = Line (V2 x y) (V2 (x + 1) y)
 verToLine x y = Line (V2 x y) (V2 x (y + 1))
@@ -494,7 +499,7 @@ renderWorld worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
           hit <- castAndShow eye dir ptr pitch
           case hit of
             Just hit -> do
-              let tex = getTex worldTexMap
+              let tex = getTexForHit world hit worldTexMap
               let hh = wallHalfScreenHeight eye eyeDir (wallPtToV2 hit)
               let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) tex
               if False
@@ -689,15 +694,13 @@ readTexes = do
 
 main :: IO ()
 main = do
-  files <- listDirectory "images"
-  putStrLn $ show files
   texes <- readTexes
   putStrLn $ show texes
-  tex <- readTex "images/stucco-64.png"
+  --tex <- readTex "images/stucco-64.png"
   --exitWith ExitSuccess
   msp worldToScreen
 
-  let worldTexMap = WorldTexMap tex
+  let worldTexMap = WorldTexMap texes
 
   hSetBuffering stdout NoBuffering
   SDL.initialize [SDL.InitVideo]
