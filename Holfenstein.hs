@@ -341,9 +341,9 @@ worldMap = [
   "sssssssg ggggggggggggggggggggggggggggsssss sssssss",
   "sssssssg gssssssssssssssssssssssssssssssss sssssss",
   "sssssssg gssssssbbbbbbsssssssssbbbbssss      yssss",
-  "sssssssg gssssss      sssssssss    ssss       ysss",
+  "sssssssg gmmmmmm      sssssssss    ssss       ysss",
   "sssssssg                                      ysss",
-  "sssssssgssssssss sssss   ssssss    ssss      yssss",
+  "sssssssgssmmmmmm sssss   ssssss    ssss      yssss",
   "ssssssssssssssssbsssssbbbssssssbbbbsssssssssssssss"]
 worldMap4 = [
   "sssssssssss",
