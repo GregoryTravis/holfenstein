@@ -101,9 +101,6 @@ withFramebuffer (Texture t _) f = do
 drawVStrip = fastestTextureVStripH
 --drawVStrip = slowTextureVStrip
 
-textureWidth = 64
-textureHeight = 64
-
 hSampler :: Int -> Int-> PackedColor
 hSampler x y
   | (isOdd x == isOdd y) = lightGray
@@ -142,13 +139,13 @@ calcTexCoord (V2 sy0 sy1) (V2 ty0 ty1) sy =
         syf = fromIntegral sy
 
 slowTextureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-slowTextureVStrip horPos v@(VStrip x y0 y1 tex) ptr pitch =
+slowTextureVStrip horPos v@(VStrip x y0 y1 tex@(Tex _ tw th _)) ptr pitch =
   mapM_ foo [cy0..cy1]
   where foo y = do col <- fasterHImageSampler tex tx (ty y)
   --where foo y = do let col = hImageSampler tex tx (ty y)
                    drawPoint (V2 x y) (fromIntegral col) ptr pitch
-        tx = floor (horPos * (fromIntegral textureWidth))
-        fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
+        tx = floor (horPos * (fromIntegral tw))
+        fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral th)) y
 
         -- More accurate
         --ty y = floor (fty y)
@@ -163,14 +160,14 @@ slowTextureVStrip horPos v@(VStrip x y0 y1 tex) ptr pitch =
 
 -- Incrementally calculate ty
 lessSlowTextureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-lessSlowTextureVStrip horPos v@(VStrip x y0 y1 tex) ptr pitch =
+lessSlowTextureVStrip horPos v@(VStrip x y0 y1 tex@(Tex _ tw th _)) ptr pitch =
   loop cy0 fty0
   --mapM_ foo [cy0..cy1]
   where loop cy fty = do col <- sampler tx (floor fty)
                          drawPoint (V2 x cy) (fromIntegral col) ptr pitch
                          if cy < cy1 then loop (cy + 1) (fty + dfty) else return ()
-        tx = floor (horPos * (fromIntegral textureWidth))
-        fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
+        tx = floor (horPos * (fromIntegral tw))
+        fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral th)) y
         fty0 = fty cy0
         dfty = (fty 1) - (fty 0)
         -- clipped screen coords
@@ -178,15 +175,15 @@ lessSlowTextureVStrip horPos v@(VStrip x y0 y1 tex) ptr pitch =
 
 -- Inline drawPoint
 textureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-textureVStrip horPos v@(VStrip x y0 y1 tex) ptr pitch =
+textureVStrip horPos v@(VStrip x y0 y1 tex@(Tex _ tw th _)) ptr pitch =
   loop startPtr cy0 fty0
   where loop curPtr cy fty = do col <- sampler tx (floor fty)
                                 poke curPtr col
                                 if cy < cy1 then loop (plusPtr curPtr dPtr) (cy + 1) (fty + dfty) else return ()
         startPtr = plusPtr ptr ((cy0 * pitch) + (x*4))
         dPtr = pitch
-        tx = floor (horPos * (fromIntegral textureWidth))
-        fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
+        tx = floor (horPos * (fromIntegral tw))
+        fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral th)) y
         fty0 = fty cy0
         dfty = (fty 1) - (fty 0)
         -- clipped screen coords
@@ -198,9 +195,9 @@ fastestTextureVStripH horPos v@(VStrip x y0 y1 (Tex _ w h texPtr)) ptr pitch =
   fastestTextureVStrip startPtr texPtr (fromIntegral w) (fromIntegral h) (fromIntegral dPtr) tx (fromIntegral cy0) (fromIntegral cy1) fty0 dfty
   where startPtr = plusPtr ptr ((cy0 * pitch) + (x*4))
         dPtr = pitch `div` 4
-        tx = floor (horPos * (fromIntegral textureWidth))
+        tx = floor (horPos * (fromIntegral w))
         fty :: Int -> CDouble
-        fty y = realToFrac $ calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral textureHeight)) y
+        fty y = realToFrac $ calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral h)) y
         fty0 :: CDouble
         fty0 = fty cy0
         dfty :: CDouble
@@ -343,10 +340,10 @@ worldMap = [
   "sssssssg                     ggggggggsssss sssssss",
   "sssssssg ggggggggggggggggggggggggggggsssss sssssss",
   "sssssssg gssssssssssssssssssssssssssssssss sssssss",
-  "sssssssg gsssssssssssssssssssssssssssss      sssss",
-  "sssssssg gssssss      sssssssss    ssss       gsss",
-  "sssssssg                                      gsss",
-  "sssssssgssssssss sssss   ssssss    ssss      sssss",
+  "sssssssg gsssssssssssssssssssssssssssss      yssss",
+  "sssssssg gssssss      sssssssss    ssss       ysss",
+  "sssssssg                                      ysss",
+  "sssssssgssssssss sssss   ssssss    ssss      yssss",
   "ssssssssssssssssssssssssssssssssssssssssssssssssss" ]
 worldMap4 = [
   "sssssssssss",
