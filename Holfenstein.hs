@@ -707,12 +707,18 @@ readTexes = do
   texes <- mapM readTex relativePaths
   return $ M.fromList [(head file, tex) | (file, tex) <- zip files texes]
 
+readMap filename = do
+  mapFile <- readFile filename
+  return $ lines mapFile
+
 main :: IO ()
 main = do
+  msp worldMap
+  mapp <- readMap "map.txt"
+  msp mapp
+  --exitWith ExitSuccess
   texes <- readTexes
   putStrLn $ show texes
-  --tex <- readTex "images/stucco-64.png"
-  --exitWith ExitSuccess
   msp worldToScreen
 
   let worldTexMap = WorldTexMap texes
