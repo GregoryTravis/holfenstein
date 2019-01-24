@@ -334,7 +334,9 @@ box (V2 x0 y0) (V2 x1 y1) = [Line a b, Line b c, Line c d, Line d a]
 -- Cubes are identified by their least corner coords
 -- Walls are identified by their least coord along their axis
 -- Remember these are drawn upside down
-worldMap :: [[Char]]
+type World = [[Char]]
+
+worldMap :: World
 worldMap = [
   "###########",
   "#       # #",
@@ -363,17 +365,12 @@ worldMap_ = [
 transposeAA ([]:_) = []
 transposeAA xs = (map head xs) : transposeAA (map tail xs)
 
-type World = [[Bool]]
-
 --data WorldTexMap = WorldTexMap (M.Map Char Tex)
 -- Just one texture in the world for now
 data WorldTexMap = WorldTexMap Tex
 getTex (WorldTexMap t) = t
 
-world :: World
-world = map (\col -> map isWall col) (transposeAA worldMap)
-  where 
-    isWall x = x == '#'
+world = worldMap
 worldTransposed = transposeAA world
 
 allSameLength xs = length (nub (map length xs)) == 1
@@ -394,7 +391,7 @@ isSolid :: World -> Int -> Int -> Bool
 --isSolid x y | TR.trace (show ("iS", x, y, (length world), worldSize, (outsideWorld x y))) False = undefined
 isSolid world x y
   | outsideWorld world x y = False
-  | otherwise = ((world !! x) !! y)
+  | otherwise = ((world !! x) !! y) /= ' '
 
 horToLine x y = Line (V2 x y) (V2 (x + 1) y)
 verToLine x y = Line (V2 x y) (V2 x (y + 1))
