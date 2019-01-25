@@ -474,7 +474,7 @@ clipToScreen (VStrip x y0 y1 tex) | y0 <= y1 =
 fal xs = [head xs, last xs]
 
 --thing t = withFramebuffer t $ castAndShow (V2 1.5 1.5) (V2 1.0 0.5)
-renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
+renderWorld' frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where castAndShow eye dir ptr pitch = do
           let hit = castRay frab frabT eye (signorm dir)
           --ifShowMap $ mapM_ (\pt -> drawLines (forDisplayF (boxAround pt)) ptr pitch) (fal vpps)
@@ -512,7 +512,7 @@ renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
 -- Refactored -- but is it slower?
-renderWorld' frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
+renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where renderWall x eye hit dir ptr pitch = do
           case hit of
             Just hit -> do
