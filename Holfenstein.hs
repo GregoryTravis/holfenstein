@@ -297,7 +297,11 @@ circlePointsF radius startAng step = map cp [startAng, startAng + step .. pi * 2
 circlePoints r sA s = map whup $ circlePointsF r sA s
 
 clearCanvas2 :: Ptr Word32 -> Int -> IO ()
-clearCanvas2 wordPtr pitch = fillBytes wordPtr (fromIntegral 0) (pitch * screenHeight)
+clearCanvas2 wordPtr pitch = do
+  fillBytes wordPtr (fromIntegral 84) half
+  fillBytes (plusPtr wordPtr half) (fromIntegral 40) half
+  return ()
+  where half = (pitch * screenHeight) `div` 2
 
 goof2 :: Ptr Word32 -> Int -> IO ()
 goof2 wordPtr pitch = do
