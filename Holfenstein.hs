@@ -49,8 +49,8 @@ ifShowMap :: IO () -> IO ()
 ifShowMap io = if showMap then io else return ()
 
 screenWidth, screenHeight :: Int
---(screenWidth, screenHeight) = (640, 480)
-(screenWidth, screenHeight) = (320, 240)
+(screenWidth, screenHeight) = (640, 480)
+--(screenWidth, screenHeight) = (320, 240)
 
 data Texture = Texture SDL.Texture (V2 CInt)
 
@@ -333,57 +333,22 @@ box (V2 x0 y0) (V2 x1 y1) = [Line a b, Line b c, Line c d, Line d a]
 -- Remember these are drawn upside down
 type World = [[Char]]
 
-worldMap :: World
-worldMap = [
-  "ssssssssssssssssssssssssssssssssssssssssssssssssss",
-  "sssssssggggggggggggggggggggggggggggggsssss sssssss",
-  "sssssssg                     ggggggggsssss sssssss",
-  "sssssssg ggggggggggggggggggggggggggggsssss sssssss",
-  "sssssssg gssssssssssssssssssssssssssssssss sssssss",
-  "sssssssg gssssssbbbbbbsssssssssbbbbssss      yssss",
-  "sssssssg gmmmmmm      sssssssss    ssss       ysss",
-  "sssssssg                                      ysss",
-  "sssssssgssmmmmmm sssss   ssssss    ssss      yssss",
-  "ssssssssssssssssbsssssbbbssssssbbbbsssssssssssssss"]
-worldMap4 = [
-  "sssssssssss",
-  "s       s s",
-  "s       s s",
-  "s    g    s",
-  "s s       s",
-  "s s       s",
-  "sssssssssss" ]
-worldMap___ = [
-  "ssssssss",
-  "s    s s",
-  "s    s s",
-  "s s    s",
-  "s s    s",
-  "ssssssss" ]
-worldMap__ = [
-  "sss",
-  "  s",
-  "sss"]
-worldMap_ = [
-  "ssss",
-  "s  s",
-  "s  s",
-  "ss s"]
-
 transposeAA ([]:_) = []
 transposeAA xs = (map head xs) : transposeAA (map tail xs)
+
+data Frab = Frab World (Int, Int) deriving Show
 
 -- Just one texture in the world for now
 data WorldTexMap = WorldTexMap (M.Map Char Tex)
 --getTexForHit w h (WorldTexMap t) | TR.trace (show ("gT", h, t, floorV $ wallPtToV2 h, (case (floorV $ wallPtToV2 h) of (V2 x y) -> getMaterial world x y))) False = undefined
-getTexForHit world hit (WorldTexMap t) = fromJust $ M.lookup texChar t
-  where texChar = case solidOf (sidesOf hit) of (x, y) -> getMaterial world x y
+getTexForHit frab hit (WorldTexMap t) = fromJust $ M.lookup texChar t
+  where texChar = case solidOf (sidesOf hit) of (x, y) -> getMaterial frab x y
         -- Non-exhaustive cases: we assert here that exactly one side of the hit is solid
         solidOf ((x0, y0), (x1, y1))
           | solid0 && (not solid1) = (x0, y0)
           | (not solid0) && solid1 = (x1, y1)
-          where solid0 = isSolid world x0 y0
-                solid1 = isSolid world x1 y1
+          where solid0 = isSolid frab x0 y0
+                solid1 = isSolid frab x1 y1
         sidesOf (Hor fx y) = let x = floor fx in ((x, y-1), (x, y))
         sidesOf (Ver x fy) = let y = floor fy in ((x-1, y), (x, y))
         --materialOf world (Hor fx y)
@@ -396,36 +361,35 @@ getTexForHit world hit (WorldTexMap t) = fromJust $ M.lookup texChar t
         --(V2 x y) = floorV $ wallPtToV2 hit
 --getTexForHit world hit (WorldTexMap t) = fromJust $ M.lookup 's' t
 
-world = transposeAA worldMap
-worldTransposed = transposeAA world
+--world = transposeAA worldMap
+--worldTransposed = transposeAA world
 
 allSameLength xs = length (nub (map length xs)) == 1
-worldIsSquare = allSameLength world
-blah = assert worldIsSquare ()
-worldSize world = V2 (length world) (length (world !! 0))
-(V2 worldWidth worldHeight) = worldSize world
-outsideWorld :: World -> Int -> Int -> Bool
-outsideWorld world x y = x < 0 || y < 0 || x >= w || y >= h
-  where V2 w h = worldSize world
-outsideWorldF :: World -> V2 Double -> Bool
-outsideWorldF world (V2 x y) = case worldSize world of (V2 wx wy) -> x < 0 || x >= (fromIntegral wx) + 1 || y < -1 || y > (fromIntegral wy) + 1
+--worldIsSquare = allSameLength world
+--blah = assert worldIsSquare ()
+--worldSize world = V2 (length world) (length (world !! 0))
+--(V2 worldWidth worldHeight) = worldSize world
+outsideWorld :: Frab -> Int -> Int -> Bool
+outsideWorld (Frab _ (w, h)) x y = x < 0 || y < 0 || x >= w || y >= h
+outsideWorldF :: Frab -> V2 Double -> Bool
+outsideWorldF (Frab _ (wx, wy)) (V2 x y) = x < 0 || x >= (fromIntegral wx) + 1 || y < -1 || y > (fromIntegral wy) + 1
 
 --isHorWall w x y | TR.trace (show ("isHorWall", x, y)) False = undefined
-isHorWall world x y = (isSolid world x (y - 1)) /= (isSolid world x y)
-isVerWall world x y = (isSolid world (x - 1) y) /= (isSolid world x y)
-isSolid :: World -> Int -> Int -> Bool
+isHorWall frab x y = (isSolid frab x (y - 1)) /= (isSolid frab x y)
+isVerWall frab x y = (isSolid frab (x - 1) y) /= (isSolid frab x y)
+isSolid :: Frab -> Int -> Int -> Bool
 --isSolid x y | TR.trace (show ("iS", x, y, (length world), worldSize, (outsideWorld x y))) False = undefined
-isSolid world x y = (getMaterial world x y) /= ' '
+isSolid frab x y = (getMaterial frab x y) /= ' '
+getMaterial :: Frab -> Int -> Int -> Char
 --getMaterial w x y | TR.trace (show ("gM", x, y)) False = undefined
-getMaterial world x y
-  | outsideWorld world x y = ' '
+getMaterial f@(Frab world _) x y
+  | outsideWorld f x y = ' '
   | otherwise = ((world !! x) !! y)
 
 horToLine x y = Line (V2 x y) (V2 (x + 1) y)
 verToLine x y = Line (V2 x y) (V2 x (y + 1))
 
-allWalls world = [horToLine x y | x <- [0..w], y <- [0..h], isHorWall world x y] ++ [verToLine x y | x <- [0..w], y <- [0..h], isVerWall world x y]
-  where V2 w h = worldSize world
+allWalls frab@(Frab _ (w, h)) = [horToLine x y | x <- [0..w], y <- [0..h], isHorWall frab x y] ++ [verToLine x y | x <- [0..w], y <- [0..h], isVerWall frab x y]
 
 data WallPt = Ver Int Double | Hor Double Int deriving Show
 wallPtToV2 (Ver x y) = V2 (fromIntegral x) y
@@ -446,12 +410,12 @@ doCastTr = False
 castTr s b | doCastTr = TR.trace s b
            | otherwise = b
 
-castRay :: World -> V2 Double -> V2 Double -> Maybe WallPt
-castRay w a b | castTr ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
-castRay world eye@(V2 ex ey) dir@(V2 dx dy)
-  | (abs dy) <= (abs dx) = stepRay world eye (eye + firstStep) unitStep slope
+castRay :: Frab -> Frab -> V2 Double -> V2 Double -> Maybe WallPt
+--castRay w a b | castTr ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
+castRay frab frabT eye@(V2 ex ey) dir@(V2 dx dy)
+  | (abs dy) <= (abs dx) = stepRay frab eye (eye + firstStep) unitStep slope
   -- This is a terribly egregious hack
-  | otherwise = transposeMaybeHit (castRay worldTransposed (transposeV2 eye) (transposeV2 dir))
+  | otherwise = transposeMaybeHit (castRay frabT frab (transposeV2 eye) (transposeV2 dir))
   where slope = dy / dx
         firstStep = V2 firstVerDx firstVerDy
         firstVerDx | dx > 0 = (fromIntegral (ceiling ex)) - ex
@@ -461,41 +425,41 @@ castRay world eye@(V2 ex ey) dir@(V2 dx dy)
 
 -- (x1, y1) is always on a vertical grid line; (x0, y0) is the previous one or
 -- the initial eye point.
-stepRay :: World -> V2 Double -> V2 Double -> V2 Double -> Double -> Maybe WallPt
-stepRay w p0 p1 u s | castTr (show ("stepRay", p0, p1, u, 2)) False = undefined
-stepRay world p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
-  | (floor y0) /= (floor y1) && isHorWall world (floor (min x0 x1)) (floor (max y0 y1)) && (abs slope) > 0 = Just $ Hor (x0 + (((fromIntegral (floor (max y0 y1))) - y0) / slope)) (floor (max y0 y1))
-  | isVerWall world (floor x1) (floor y1) = Just $ Ver (floor x1) y1
-  | outsideWorldF world p0 = Nothing
-  | otherwise = stepRay world p1 (p1 + unitStep) unitStep slope
+stepRay :: Frab -> V2 Double -> V2 Double -> V2 Double -> Double -> Maybe WallPt
+--stepRay w p0 p1 u s | castTr (show ("stepRay", p0, p1, u, 2)) False = undefined
+stepRay frab p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
+  | (floor y0) /= (floor y1) && isHorWall frab (floor (min x0 x1)) (floor (max y0 y1)) && (abs slope) > 0 = Just $ Hor (x0 + (((fromIntegral (floor (max y0 y1))) - y0) / slope)) (floor (max y0 y1))
+  | isVerWall frab (floor x1) (floor y1) = Just $ Ver (floor x1) y1
+  | outsideWorldF frab p0 = Nothing
+  | otherwise = stepRay frab p1 (p1 + unitStep) unitStep slope
 
--- (scale, translate)
-worldToScreen :: (Double, Int)
-worldToScreen = (scale, translate)
+data Wts = Wts Double Int deriving Show
+worldToScreen :: Frab -> Wts
+worldToScreen (Frab world (w, h)) = Wts scale translate
   where hMargin = screenWidth `div` 10
         vMargin = screenHeight `div` 10
         hScale :: Double
-        hScale = (fromIntegral (screenWidth - 2 * hMargin)) / (fromIntegral (worldWidth + 2))
+        hScale = (fromIntegral (screenWidth - 2 * hMargin)) / (fromIntegral (w + 2))
         vScale :: Double
-        vScale = (fromIntegral (screenHeight - 2 * vMargin)) / (fromIntegral (worldHeight + 2))
+        vScale = (fromIntegral (screenHeight - 2 * vMargin)) / (fromIntegral (h + 2))
         scale = min hScale vScale
         translate = min hMargin vMargin
-(wtsScale, wtsTranslate) = worldToScreen
+--(wtsScale, wtsTranslate) = worldToScreen
 
-toWorldCoordinate :: Int -> Double
+toWorldCoordinate :: Wts -> Int -> Double
 --toWorldCoordinate ix = case worldToScreen of (s, t) -> ((fromIntegral ix)-(fromIntegral t)) / s --(fromIntegral s)
-toWorldCoordinate ix = ((fromIntegral ix) - (fromIntegral wtsTranslate)) / wtsScale
+toWorldCoordinate (Wts s t) ix = ((fromIntegral ix) - (fromIntegral t)) / s
 
-forDisplay :: Num a => [Line a] -> [Line a]
-forDisplay lines = 
+forDisplay :: Num a => Wts -> [Line a] -> [Line a]
+forDisplay (Wts wtsScale wtsTranslate) lines = 
   translateLines (V2 (fromIntegral wtsTranslate) (fromIntegral wtsTranslate)) (scaleLines (fromIntegral (floor wtsScale)) lines)
 --forDisplay lines = case worldToScreen of (s, t) -> translateLines (V2 t t) (scaleLines (V2 s s) lines)
-forDisplayF :: [Line Double] -> [Line Int]
-forDisplayF lines = map floorL (forDisplay lines)
+forDisplayF :: Wts -> [Line Double] -> [Line Int]
+forDisplayF wts lines = map floorL (forDisplay wts lines)
   where floorL (Line a b) = Line (floorV a) (floorV b)
 
-drawMap = drawLines map
-  where map = forDisplay $ allWalls world -- translateLines (V2 100 100) (scaleLines 50 allWalls)
+drawMap wts frab = drawLines map
+  where map = forDisplay wts (allWalls frab) -- translateLines (V2 100 100) (scaleLines 50 allWalls)
 
 data VStrip = VStrip Int Int Int Tex --deriving Show
 
@@ -506,9 +470,9 @@ clipToScreen (VStrip x y0 y1 tex) | y0 <= y1 =
 fal xs = [head xs, last xs]
 
 --thing t = withFramebuffer t $ castAndShow (V2 1.5 1.5) (V2 1.0 0.5)
-renderWorld worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
+renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where castAndShow eye dir ptr pitch = do
-          let hit = castRay world eye (signorm dir)
+          let hit = castRay frab frabT eye (signorm dir)
           --ifShowMap $ mapM_ (\pt -> drawLines (forDisplayF (boxAround pt)) ptr pitch) (fal vpps)
         --drawLines (forDisplayF [(Line eye (eye + dir))]) ptr pitch
           case hit of
@@ -522,7 +486,7 @@ renderWorld worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
           hit <- castAndShow eye dir ptr pitch
           case hit of
             Just hit -> do
-              let tex = getTexForHit world hit worldTexMap
+              let tex = getTexForHit frab hit worldTexMap
               let hh = wallHalfScreenHeight eye eyeDir (wallPtToV2 hit)
               let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) tex
               if False
@@ -543,27 +507,19 @@ renderWorld worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
         --dirs = [V2 (-0.9) (-1.0)]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
-drawEye eye ang ptr pitch = do
-  drawLines (forDisplayF (boxAround eye)) ptr pitch
-  drawLines (forDisplayF [eyeLine]) ptr pitch
+drawEye wts eye ang ptr pitch = do
+  drawLines (forDisplayF wts (boxAround eye)) ptr pitch
+  drawLines (forDisplayF wts [eyeLine]) ptr pitch
   where eyeLine = Line eye (eye + angToDir ang)
 
-drawAll worldTexMap eye ang ptr pitch = do
+drawAll wts frab frabT worldTexMap eye ang ptr pitch = do
   --gfx ptr 23
   --nPtr <- gfx2 ptr 24
   --msp (ptr, nPtr, minusPtr nPtr ptr)
   clearCanvas2 ptr pitch
-  renderWorld worldTexMap eye ang ptr pitch
-  ifShowMap $ drawMap ptr pitch
-  ifShowMap $ drawEye eye ang ptr pitch
-
-vroo = do
-  putStrLn $ show $ V2 3.4 4.5
-  putStrLn $ show $ (V2 3.4 4.5) * 2
-  putStrLn $ show $ Ver 1 2.3
-  putStrLn $ show world
-  putStrLn $ show $ (signorm (V2 1.0 0.5))
-  return ()
+  renderWorld frab frabT worldTexMap eye ang ptr pitch
+  ifShowMap $ drawMap wts frab ptr pitch
+  ifShowMap $ drawEye wts eye ang ptr pitch
 
 --data PressRelease = Press | Release
 data KeyEvent = KeyEvent Int InputMotion deriving (Eq, Ord, Show)
@@ -589,7 +545,7 @@ getCursorPos events = case (filter isMouseMotionEvent events) of [] -> Nothing
                                                                  es -> case (last es) of (MouseMotionEvent d) -> case (mouseMotionEventPos d) of (P (V2 x y)) -> Just (fromIntegral x, fromIntegral y)
   where isMouseMotionEvent (MouseMotionEvent _) = True
         isMouseMotionEvent _ = False
-screenToWorld (x, y) = (toWorldCoordinate x, toWorldCoordinate y)
+screenToWorld wts (x, y) = (toWorldCoordinate wts x, toWorldCoordinate wts y)
 
 fov = pi / 3
 -- view plane starts one unit from origin perp to the x axis
@@ -666,14 +622,14 @@ updateEyeAng (eye, ang) keySet = (newEye, newAng)
                           else eye
         forwards = multMV (rotMatrix ang) (V2 1.0 0.0)
 
-physics :: World -> V2 Double -> V2 Double -> V2 Double
-physics world oEye@(V2 ox oy) nEye@(V2 nx ny) = V2 cnx cny
+physics :: Frab -> V2 Double -> V2 Double -> V2 Double
+physics frab oEye@(V2 ox oy) nEye@(V2 nx ny) = V2 cnx cny
   where (V2 ex ey) = floorV nEye
-        nSolid = isSolid world ex ey
-        lSolid = isSolid world (ex-1) ey
-        rSolid = isSolid world (ex+1) ey
-        dSolid = isSolid world ex (ey-1)
-        uSolid = isSolid world ex (ey+1)
+        nSolid = isSolid frab ex ey
+        lSolid = isSolid frab (ex-1) ey
+        rSolid = isSolid frab (ex+1) ey
+        dSolid = isSolid frab ex (ey-1)
+        uSolid = isSolid frab ex (ey+1)
         margin = 0.25
         lMargin = ((fromIntegral ex) + margin)
         rMargin = ((fromIntegral (ex+1)) - margin)
@@ -715,19 +671,31 @@ readTexes = do
   texes <- mapM readTex relativePaths
   return $ M.fromList [(head file, tex) | (file, tex) <- zip files texes]
 
+readMap :: String -> IO [[Char]]
 readMap filename = do
   mapFile <- readFile filename
   return $ lines mapFile
 
+readFrab :: String -> IO Frab
+readFrab filename = do
+  map <- readMap filename
+  let worldSize = assert (allSameLength map)
+                   ((length map), (length (map !! 0)))
+  return $ Frab map worldSize
+
+transposeFrab (Frab world (w, h)) = Frab (transposeAA world) (h, w)
+
 main :: IO ()
 main = do
-  msp worldMap
-  mapp <- readMap "map.txt"
-  msp mapp
+  frabT <- readFrab "map.txt"
+  msp frabT
+  let frab = transposeFrab frabT
+  msp frab
   --exitWith ExitSuccess
   texes <- readTexes
   putStrLn $ show texes
-  msp worldToScreen
+  let wts = worldToScreen frab
+  msp wts
 
   let worldTexMap = WorldTexMap texes
 
@@ -757,7 +725,6 @@ main = do
   SDL.rendererDrawColor renderer $= V4 maxBound maxBound maxBound maxBound
 
   targetTexture <- createBlank renderer (V2 (fromIntegral screenWidth) (fromIntegral screenHeight)) SDL.TextureAccessStreaming
-  --vroo
 
   startNow <- getPOSIXTime 
 
@@ -781,15 +748,13 @@ main = do
 
       --putStrLn $ show $ eye
       let (kEye, ang) = updateEyeAng (prevEye, prevAng) newKeySet
-      let pEye = physics world prevEye kEye
-      if pEye /= kEye
-        then msp ("fiz", prevEye, kEye, pEye)
-        else return ()
-      let eye = case getCursorPos events of Just (x, y) -> case screenToWorld (x, y) of (x, y) -> (if outsideWorldF world (V2 x y) then pEye else (V2 x y))
+      let pEye = physics frab prevEye kEye
+      --if pEye /= kEye then msp ("fiz", prevEye, kEye, pEye) else return ()
+      let eye = case getCursorPos events of Just (x, y) -> case screenToWorld wts (x, y) of (x, y) -> (if outsideWorldF frab (V2 x y) then pEye else (V2 x y))
                                             Nothing -> pEye
       --let ang = prevAng
       --msp $ ("ang", ang)
-      withFramebuffer targetTexture $ drawAll worldTexMap eye ang
+      withFramebuffer targetTexture $ drawAll wts frab frabT worldTexMap eye ang
       --thang eye ang targetTexture
       --bong eye targetTexture
 
