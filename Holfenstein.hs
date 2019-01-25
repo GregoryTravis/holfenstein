@@ -511,6 +511,9 @@ renderWorld' frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs pt
         --dirs = [V2 (-0.9) (-1.0)]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
+
+castRays frab frabT eye dirs = map (\dir -> castRay frab frabT eye (signorm dir)) dirs
+
 -- Refactored -- but is it slower?
 renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where renderWall x eye hit dir ptr pitch = do
@@ -524,7 +527,7 @@ renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr
                       in fillVStrip clippedVStrip ptr pitch
                 else drawVStrip (horPos hit) unclippedVStrip ptr pitch
             Nothing -> return ()
-        hits = map (\dir -> castRay frab frabT eye (signorm dir)) dirs
+        hits = castRays frab frabT eye dirs
         castAndShowL eye dirs ptr pitch = do
           mapM_ (\(x, dir, hit) -> renderWall x eye hit dir ptr pitch) (zip3 [0..] dirs hits)
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
