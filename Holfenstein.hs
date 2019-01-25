@@ -511,9 +511,8 @@ renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr
         --dirs = [V2 (-0.9) (-1.0)]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
-{-
- - Refactored -- but is it slower?
-renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
+-- Refactored -- but is it slower?
+renderWorld' frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where renderWall x eye hit dir ptr pitch = do
           case hit of
             Just hit -> do
@@ -538,7 +537,6 @@ renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr
         --dirs = [V2 9.801714032956077e-2 0.9951847266721968, V2 (-9.801714032956077e-2) 0.9951847266721968]
         --dirs = [V2 (-0.9) (-1.0)]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
--}
 
 drawEye wts eye ang ptr pitch = do
   drawLines (forDisplayF wts (boxAround eye)) ptr pitch
@@ -718,6 +716,16 @@ readFrab filename = do
 
 transposeFrab (Frab world (w, h)) = Frab (transposeAA world) (h, w)
 
+frBufferLen = 20
+data FRBuffer = FRBuffer [Double] Double Int
+frBufferEmpty = FRBuffer [] 0 0
+frBufferAvg (FRBuffer _ _ 0) = 0
+frBufferAvg (FRBuffer es tot num) = tot / (fromIntegral num)
+frBufferAdd (FRBuffer es tot num) e | num == frBufferLen = FRBuffer [e] e 1
+                                    | otherwise = FRBuffer (e : es) (tot + e) (num + 1)
+frBufferUpdate :: FRBuffer -> Double -> (Double, FRBuffer)
+frBufferUpdate frBuf e = (frBufferAvg frBuf, frBufferAdd frBuf e)
+
 main :: IO ()
 main = do
   frabT <- readFrab "map.txt"
@@ -764,9 +772,12 @@ main = do
   let
     screenCenter = P (V2 (fromIntegral (screenWidth `div` 2)) (fromIntegral (screenHeight `div` 2)))
 
-    loop lastNow theta prevEye prevAng keySet = do
+    loop lastNow theta prevEye prevAng keySet frBuf = do
       now <- getPOSIXTime 
-      putStrLn $ "FPS " ++ (show $ 1.0 / (now - lastNow))
+      let instantFPS :: Double
+          instantFPS = 1.0 / (realToFrac (now - lastNow))
+      let (fps, newFRBuf) = frBufferUpdate frBuf instantFPS
+      putStrLn $ "FPS " ++ (show fps)
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture goof2
       --let eye = (V2 1.1 1.1) + ((V2 20.0 15.0) * ((fromIntegral theta) / 360.0))
@@ -820,9 +831,9 @@ main = do
 
       SDL.present renderer
 
-      unless quit (loop now (theta + 2 `mod` 360) eye ang newKeySet)
+      unless quit (loop now (theta + 2 `mod` 360) eye ang newKeySet newFRBuf)
 
-  loop startNow (0 :: Int) (V2 1.6 5.3) (pi / 2) S.empty
+  loop startNow (0 :: Int) (V2 1.6 5.3) (pi / 2) S.empty frBufferEmpty
 
   SDL.destroyWindow window
   SDL.quit
