@@ -585,7 +585,7 @@ viewPlaneLeft = V2 1.0 (viewPlaneWidth / 2)
 viewPlaneRight = V2 1.0 (-(viewPlaneWidth / 2))
 viewPlaneHeight = viewPlaneWidth * (fromIntegral screenHeight / fromIntegral screenWidth)
 
-wallHalfHeight = 0.5
+wallHalfHeight = 1.0
 
 wallHalfScreenHeight :: V2 Double -> V2 Double -> V2 Double -> Int
 --wallHalfScreenHeight eye dir hit | TR.trace (show (eye, dir, hit, ((hit - eye) `dot` dir), (norm (hit - eye)))) False = undefined
