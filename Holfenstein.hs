@@ -511,6 +511,35 @@ renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr
         --dirs = [V2 (-0.9) (-1.0)]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
+{-
+ - Refactored -- but is it slower?
+renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
+  where renderWall x eye hit dir ptr pitch = do
+          case hit of
+            Just hit -> do
+              let tex = getTexForHit frab hit worldTexMap
+              let hh = wallHalfScreenHeight eye eyeDir (wallPtToV2 hit)
+              let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) tex
+              if False
+                then let clippedVStrip = clipToScreen unclippedVStrip
+                      in fillVStrip clippedVStrip ptr pitch
+                else drawVStrip (horPos hit) unclippedVStrip ptr pitch
+            Nothing -> return ()
+        hits = map (\dir -> castRay frab frabT eye (signorm dir)) dirs
+        castAndShowL eye dirs ptr pitch = do
+          mapM_ (\(x, dir, hit) -> renderWall x eye hit dir ptr pitch) (zip3 [0..] dirs hits)
+        --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
+        --dirs = circlePointsF 1.0 0 (pi / 32)
+        wid = (screenWidth `div` 1)
+        --wid = 27
+        vpps = viewPlanePoints wid eye ang --(screenWidth `div` 2) eye ang
+        dirs = map (\vpp -> signorm (vpp - eye)) vpps
+        eyeDir = angToDir ang
+        --dirs = [V2 9.801714032956077e-2 0.9951847266721968, V2 (-9.801714032956077e-2) 0.9951847266721968]
+        --dirs = [V2 (-0.9) (-1.0)]
+--circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
+-}
+
 drawEye wts eye ang ptr pitch = do
   drawLines (forDisplayF wts (boxAround eye)) ptr pitch
   drawLines (forDisplayF wts [eyeLine]) ptr pitch
@@ -737,7 +766,7 @@ main = do
 
     loop lastNow theta prevEye prevAng keySet = do
       now <- getPOSIXTime 
-      --putStrLn $ "FPS " ++ (show $ 1.0 / (now - lastNow))
+      putStrLn $ "FPS " ++ (show $ 1.0 / (now - lastNow))
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture goof2
       --let eye = (V2 1.1 1.1) + ((V2 20.0 15.0) * ((fromIntegral theta) / 360.0))
