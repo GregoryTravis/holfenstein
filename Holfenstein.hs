@@ -89,6 +89,12 @@ packColor :: Color -> Word32
 packColor (Color r g b) =
   fromIntegral $ (shift r 24) .|. (shift g 16) .|. (shift b 8) .|. 0xff
 
+unpackColor :: Word32 -> Color
+unpackColor w = (Color r g b)
+  where r = (shiftR r 24) .&. 0xff
+        g = (shiftR r 16) .&. 0xff
+        b = (shiftR r 8) .&. 0xff
+
 colorFade x y =
   (shift red 24) .|. (shift green 16) .|. 0xff
   where red = floor $ 255 * ((fromIntegral x) / (fromIntegral screenWidth))
@@ -718,6 +724,16 @@ readTex fileName = do
   mapM_ (copy image mem w) [(x, y) | x <- [0..w-1], y <- [0..h-1]]
   return $ Tex image w h mem
   where copy image mem w (x, y) = do pokeElemOff mem (x + (y * w)) (packPixel (pixelAt image x y))
+
+{-
+darkenTex :: Tex -> IO Tex
+darkenTex (Tex image w h mem) =
+  newMem <- mallocBytes (w * h * 4) :: IO (Ptr Word32)
+  mapM_ (darken image mem w) [(x, y) | x <- [0..w-1], y <- [0..h-1]]
+  return $ Tex image w h mem
+  where darken image mem w x y = do
+          let c = unpackColor (peekElemOff mem (x + (y * w)))
+-}
 
 readTexes :: IO (M.Map Char Tex)
 readTexes = do
