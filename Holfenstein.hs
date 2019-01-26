@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
 module Main (main) where
 
 import Data.Time.Clock.POSIX (getPOSIXTime)
@@ -15,6 +15,8 @@ import Data.Bits
 import Data.Char (ord)
 import Data.Foldable hiding (elem)
 import Data.List (nub)
+import qualified Data.Vector as V
+import Data.Vector ((!))
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Ord
@@ -522,6 +524,21 @@ castRaysI frab frabT eye dirs = runST $
      mapM_ (gorb) (zip [0..] dirs)
      getElems arr
 
+--castRaysB :: Frab -> Frab -> V2 Double -> [V2 Double] -> [Maybe WallPt]
+castRaysB frab frabT eye dirsL = runST $
+  do arr <- newArray (0, (length dirs)-1) Nothing :: ST s (STArray s Int (Maybe WallPt))
+     let  hab s e
+            -- | TR.trace (show ("hab", s, e)) False = undefined
+            | s == e = do writeArray arr s $ castRay frab frabT eye (signorm (dirs ! s))
+            | s == e-1 = do writeArray arr s $ castRay frab frabT eye (signorm (dirs ! s))
+                            writeArray arr e $ castRay frab frabT eye (signorm (dirs ! e))
+            | otherwise = let m = s + ((e - s) `div` 2)
+                           in do hab s m
+                                 hab m e
+     hab 0 ((length dirs) - 1)
+     getElems arr
+  where dirs = V.fromList dirsL
+
 -- Refactored -- but is it slower?
 renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where renderWall x eye hit dir ptr pitch = do
@@ -537,7 +554,7 @@ renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr
                       in fillVStrip clippedVStrip ptr pitch
                 else drawVStrip (horPos hit) unclippedVStrip ptr pitch
             Nothing -> return ()
-        hits = castRaysI frab frabT eye dirs
+        hits = castRaysB frab frabT eye dirs
         castAndShowL eye dirs ptr pitch = do
           mapM_ (\(x, dir, hit) -> renderWall x eye hit dir ptr pitch) (zip3 [0..] dirs hits)
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
