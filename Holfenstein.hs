@@ -522,13 +522,6 @@ castRaysI frab frabT eye dirs = runST $
      mapM_ (gorb) (zip [0..] dirs)
      getElems arr
 
-buildPair = runST $ do arr <- newArray (1,10) 37 :: ST s (STArray s Int Int)
-                       a <- readArray arr 1
-                       writeArray arr 1 64
-                       b <- readArray arr 1
-                       c <- getElems arr
-                       return c
-
 -- Refactored -- but is it slower?
 renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where renderWall x eye hit dir ptr pitch = do
@@ -750,7 +743,6 @@ main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
 
-  --msp $ show buildPair
   --exitWith ExitSuccess
   frabT <- readFrab "map.txt"
   --msp frabT
