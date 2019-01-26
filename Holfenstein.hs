@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Main (main) where
 
 import Data.Time.Clock.POSIX (getPOSIXTime)
@@ -514,11 +515,35 @@ renderWorld' frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs pt
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
 
-castRays frab frabT eye dirs = map (\dir -> castRay frab frabT eye (signorm dir)) dirs
+--castRays :: Frab -> Frab -> V2 Double -> [V2 Double] -> [Maybe WallPt]
+--castRays frab frabT eye dirs = map (\dir -> castRay frab frabT eye (signorm dir)) dirs
+
+--castRaysB :: Frab -> Frab -> V2 Double -> [V2 Double] -> () -- -> [Maybe WallPt]
+castRaysB frab frabT eye dirs = runST $
+  do arr <- newArray (0, (length dirs)-1) Nothing :: ST s (STArray s Int (Maybe WallPt))
+     --a <- readArray arr 1
+     --writeArray arr 1 (Just (Ver 3 3.3))
+     --b <- readArray arr 1
+     let gorb (i, dir) = do
+            a <- readArray arr 1
+            writeArray arr i $ castRay frab frabT eye (signorm dir)
+            return $ Just (Ver 2 2.2)
+     vee <- mapM (gorb) (zip [0..] dirs)
+     c <- getElems arr
+     return c
+
+buildPair = runST $ do arr <- newArray (1,10) 37 :: ST s (STArray s Int Int)
+                       a <- readArray arr 1
+                       writeArray arr 1 64
+                       b <- readArray arr 1
+                       c <- getElems arr
+                       return c
 
 -- Refactored -- but is it slower?
 renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where renderWall x eye hit dir ptr pitch = do
+          --let vits = castRaysB frab frabT eye (take 4 dirs)
+          --msp $ vits
           case hit of
             Just hit -> do
               let tex = getTexForHit frab hit worldTexMap
@@ -529,7 +554,7 @@ renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr
                       in fillVStrip clippedVStrip ptr pitch
                 else drawVStrip (horPos hit) unclippedVStrip ptr pitch
             Nothing -> return ()
-        hits = castRays frab frabT eye dirs
+        hits = castRaysB frab frabT eye dirs
         castAndShowL eye dirs ptr pitch = do
           mapM_ (\(x, dir, hit) -> renderWall x eye hit dir ptr pitch) (zip3 [0..] dirs hits)
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
@@ -694,7 +719,7 @@ readTex fileName = do
   res <- readImage fileName
   let image = case res of (Right image) -> convertRGBA8 $ image
   let Image { imageWidth = w, imageHeight = h } = image
-  msp ("im", w, h)
+  --msp ("im", w, h)
   mem <- mallocBytes (w * h * 4) :: IO (Ptr Word32)
   mapM_ (copy image mem w) [(x, y) | x <- [0..w-1], y <- [0..h-1]]
   return $ Tex image w h mem
@@ -731,31 +756,23 @@ frBufferAdd (FRBuffer es tot num) e | num == frBufferLen = FRBuffer [e] e 1
 frBufferUpdate :: FRBuffer -> Double -> (Double, FRBuffer)
 frBufferUpdate frBuf e = (frBufferAvg frBuf, frBufferAdd frBuf e)
 
-{-
-buildPair = do arr <- newArray (1,10) 37 :: ST s (STArray s Int Int)
-               a <- readArray arr 1
-               writeArray arr 1 64
-               b <- readArray arr 1
-               c <- getElems arr
-               return c
--}
-
 main :: IO ()
 main = do
-  --msp $ show $ runST buildPair
+  hSetBuffering stdout NoBuffering
+
+  --msp $ show buildPair
   --exitWith ExitSuccess
   frabT <- readFrab "map.txt"
-  msp frabT
+  --msp frabT
   let frab = transposeFrab frabT
-  msp frab
+  --msp frab
   texes <- readTexes
-  putStrLn $ show texes
+  --putStrLn $ show texes
   let wts = worldToScreen frab
-  msp wts
+  --msp wts
 
   let worldTexMap = WorldTexMap texes
 
-  hSetBuffering stdout NoBuffering
   SDL.initialize [SDL.InitVideo]
 
   SDL.HintRenderScaleQuality $= SDL.ScaleLinear
@@ -792,7 +809,7 @@ main = do
       let instantFPS :: Double
           instantFPS = 1.0 / (realToFrac (now - lastNow))
       let (fps, newFRBuf) = frBufferUpdate frBuf instantFPS
-      putStrLn $ "FPS " ++ (show fps)
+      --putStrLn $ "FPS " ++ (show fps)
       --putStrLn $ "LOOP " ++ (show theta)
       --withFramebuffer targetTexture goof2
       --let eye = (V2 1.1 1.1) + ((V2 20.0 15.0) * ((fromIntegral theta) / 360.0))
