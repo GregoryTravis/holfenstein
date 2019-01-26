@@ -526,18 +526,22 @@ castRaysI frab frabT eye dirs = runST $
 
 --castRaysB :: Frab -> Frab -> V2 Double -> [V2 Double] -> [Maybe WallPt]
 castRaysB frab frabT eye dirsL = runST $
-  do arr <- newArray (0, (length dirs)-1) Nothing :: ST s (STArray s Int (Maybe WallPt))
+  do arr <- newArray (0, last) Nothing :: ST s (STArray s Int (Maybe WallPt))
      let  hab s e
             -- | TR.trace (show ("hab", s, e)) False = undefined
-            | s == e = do writeArray arr s $ castRay frab frabT eye (signorm (dirs ! s))
-            | s == e-1 = do writeArray arr s $ castRay frab frabT eye (signorm (dirs ! s))
-                            writeArray arr e $ castRay frab frabT eye (signorm (dirs ! e))
+            | s == e = return ()
+            | s == e-1 = return ()
             | otherwise = let m = s + ((e - s) `div` 2)
-                           in do hab s m
+                           in do cast m
+                                 hab s m
                                  hab m e
-     hab 0 ((length dirs) - 1)
+          cast i = writeArray arr i $ castRay frab frabT eye (signorm (dirs ! i))
+     cast 0
+     cast last
+     hab 0 last
      getElems arr
   where dirs = V.fromList dirsL
+        last = (length dirs) - 1
 
 -- Refactored -- but is it slower?
 renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
