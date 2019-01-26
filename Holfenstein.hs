@@ -350,7 +350,9 @@ data Frab = Frab World (Int, Int) deriving Show
 -- Just one texture in the world for now
 data WorldTexMap = WorldTexMap (M.Map Char Tex)
 --getTexForHit w h (WorldTexMap t) | TR.trace (show ("gT", h, t, floorV $ wallPtToV2 h, (case (floorV $ wallPtToV2 h) of (V2 x y) -> getMaterial world x y))) False = undefined
-getTexForHit frab hit (WorldTexMap t) = fromJust $ M.lookup texChar t
+-- Uncomment to get black for interpolated strips
+--getTexForHit frab (Hit hit True) (WorldTexMap t) = fromJust $ M.lookup 'k' t
+getTexForHit frab (Hit hit _) (WorldTexMap t) = fromJust $ M.lookup texChar t
   where texChar = case solidOf (sidesOf hit) of (x, y) -> getMaterial frab x y
         -- Non-exhaustive cases: we assert here that exactly one side of the hit is solid
         solidOf ((x0, y0), (x1, y1))
@@ -483,44 +485,6 @@ clipToScreen (VStrip x y0 y1 tex) | y0 <= y1 =
 
 fal xs = [head xs, last xs]
 
---thing t = withFramebuffer t $ castAndShow (V2 1.5 1.5) (V2 1.0 0.5)
-renderWorld' frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
-  where castAndShow eye dir ptr pitch = do
-          let hit = castRay frab frabT eye (signorm dir)
-          --ifShowMap $ mapM_ (\pt -> drawLines (forDisplayF (boxAround pt)) ptr pitch) (fal vpps)
-        --drawLines (forDisplayF [(Line eye (eye + dir))]) ptr pitch
-          case hit of
-            Just hit -> do
-              --ifShowMap $ drawLines (forDisplayF (boxAround (wallPtToV2 hit))) ptr pitch
-              --ifShowMap $ drawLines (forDisplayF [(Line eye (wallPtToV2 hit))]) ptr pitch
-              return ()
-            Nothing -> return ()
-          return hit
-        renderWall x eye dir ptr pitch = do
-          hit <- castAndShow eye dir ptr pitch
-          case hit of
-            Just hit -> do
-              let tex = getTexForHit frab hit worldTexMap
-              let hh = wallHalfScreenHeight eye eyeDir (wallPtToV2 hit)
-              let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) tex
-              if False
-                then let clippedVStrip = clipToScreen unclippedVStrip
-                      in fillVStrip clippedVStrip ptr pitch
-                else drawVStrip (horPos hit) unclippedVStrip ptr pitch
-            Nothing -> return ()
-        castAndShowL eye dirs ptr pitch = do
-          mapM_ (\(x, dir) -> renderWall x eye dir ptr pitch) (zip [0..] dirs)
-        --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
-        --dirs = circlePointsF 1.0 0 (pi / 32)
-        wid = (screenWidth `div` 1)
-        --wid = 27
-        vpps = viewPlanePoints wid eye ang --(screenWidth `div` 2) eye ang
-        dirs = map (\vpp -> signorm (vpp - eye)) vpps
-        eyeDir = angToDir ang
-        --dirs = [V2 9.801714032956077e-2 0.9951847266721968, V2 (-9.801714032956077e-2) 0.9951847266721968]
-        --dirs = [V2 (-0.9) (-1.0)]
---circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
-
 castRaysI frab frabT eye dirs = runST $
   do arr <- newArray (0, (length dirs)-1) Nothing :: ST s (STArray s Int (Maybe WallPt))
      let gorb (i, dir) = do
@@ -581,8 +545,8 @@ castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
 renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where renderWall x eye hit dir ptr pitch = do
           case hit of
-            Just (Hit hit _) -> do
-              let tex = getTexForHit frab hit worldTexMap
+            Just h@(Hit hit interpolated) -> do
+              let tex = getTexForHit frab h worldTexMap
               let hh = wallHalfScreenHeight eye eyeDir (wallPtToV2 hit)
               let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) tex
               if False
