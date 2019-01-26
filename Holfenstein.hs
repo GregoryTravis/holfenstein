@@ -400,9 +400,14 @@ verToLine x y = Line (V2 x y) (V2 x (y + 1))
 
 allWalls frab@(Frab _ (w, h)) = [horToLine x y | x <- [0..w], y <- [0..h], isHorWall frab x y] ++ [verToLine x y | x <- [0..w], y <- [0..h], isVerWall frab x y]
 
-data WallPt = Ver Int Double | Hor Double Int deriving Show
+data WallPt = Ver Int Double | Hor Double Int deriving (Eq, Show)
 wallPtToV2 (Ver x y) = V2 (fromIntegral x) y
 wallPtToV2 (Hor x y) = V2 x (fromIntegral y)
+wallPtInt (Ver x y) = (x, floor y)
+wallPtInt (Hor x y) = (floor x, y)
+sameWall (Hor fx0 y0) (Hor fx1 y1) = y0 == y1 && ((floor fx0) == (floor fx1))
+sameWall (Ver x0 fy0) (Ver x1 fy1) = x0 == x1 && ((floor fy0) == (floor fy1))
+sameWall _ _ = False
 transposeHit (Hor x y) = Ver y x
 transposeHit (Ver x y) = Hor y x
 transposeMaybeHit (Just hit) = Just $ transposeHit hit
@@ -525,17 +530,42 @@ castRaysI frab frabT eye dirs = runST $
      getElems arr
 
 --castRaysB :: Frab -> Frab -> V2 Double -> [V2 Double] -> [Maybe WallPt]
-castRaysB frab frabT eye dirsL = runST $
+castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
   do arr <- newArray (0, last) Nothing :: ST s (STArray s Int (Maybe WallPt))
      let  hab s e
             -- | TR.trace (show ("hab", s, e)) False = undefined
             | s == e = return ()
             | s == e-1 = return ()
-            | otherwise = let m = s + ((e - s) `div` 2)
-                           in do cast m
-                                 hab s m
-                                 hab m e
-          cast i = writeArray arr i $ castRay frab frabT eye (signorm (dirs ! i))
+            | otherwise = do isSameHit <- sameHit s e
+                             if isSameHit
+                               then do interpolate s e
+                               else let m = s + ((e - s) `div` 2)
+                                     in do cast m
+                                           hab s m
+                                           hab m e
+          cast i = writeArray arr i $  castRay frab frabT eye (signorm (dirs ! i))
+          sameHit a b = do (Just aHit) <- readArray arr a
+                           (Just bHit) <- readArray arr b
+                           return $ sameWall aHit bHit
+          interpolate s e = do
+            (Just hit) <- readArray arr s
+            case hit of (Hor fx y) -> mapM_ (hguvv y) [(s+1)..(e-1)]
+                        (Ver x fy) -> mapM_ (vguvv x) [(s+1)..(e-1)]
+            where hguvv wy i = writeArray arr i (Just iHit)
+                    where (V2 dirx diry) = dirs ! i
+                          dy = (fromIntegral wy) - ey
+                          dx = dy * (dirx / diry)
+                          hx = ex + dx
+                          hy = wy
+                          iHit = Hor hx hy
+                  vguvv wx i = writeArray arr i (Just iHit)
+                    where (V2 dirx diry) = dirs ! i
+                          dx = (fromIntegral wx) - ex
+                          dy = dx * (diry / dirx)
+                          hx = wx
+                          hy = ey + dy
+                          iHit = Ver hx hy
+                  correct i = castRay frab frabT eye (signorm (dirs ! i))
      cast 0
      cast last
      hab 0 last
@@ -546,8 +576,6 @@ castRaysB frab frabT eye dirsL = runST $
 -- Refactored -- but is it slower?
 renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where renderWall x eye hit dir ptr pitch = do
-          --let vits = castRaysB frab frabT eye (take 4 dirs)
-          --msp $ vits
           case hit of
             Just hit -> do
               let tex = getTexForHit frab hit worldTexMap
@@ -561,16 +589,10 @@ renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr
         hits = castRaysB frab frabT eye dirs
         castAndShowL eye dirs ptr pitch = do
           mapM_ (\(x, dir, hit) -> renderWall x eye hit dir ptr pitch) (zip3 [0..] dirs hits)
-        --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
-        --dirs = circlePointsF 1.0 0 (pi / 32)
         wid = (screenWidth `div` 1)
-        --wid = 27
         vpps = viewPlanePoints wid eye ang --(screenWidth `div` 2) eye ang
         dirs = map (\vpp -> signorm (vpp - eye)) vpps
         eyeDir = angToDir ang
-        --dirs = [V2 9.801714032956077e-2 0.9951847266721968, V2 (-9.801714032956077e-2) 0.9951847266721968]
-        --dirs = [V2 (-0.9) (-1.0)]
---circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
 drawEye wts eye ang ptr pitch = do
   drawLines (forDisplayF wts (boxAround eye)) ptr pitch
@@ -868,7 +890,7 @@ main = do
 
       unless quit (loop now (theta + 2 `mod` 360) eye ang newKeySet newFRBuf)
 
-  loop startNow (0 :: Int) (V2 40.5 7.5) (pi / 2) S.empty frBufferEmpty
+  loop startNow (0 :: Int) (V2 40.5 7.5) (pi / 8) S.empty frBufferEmpty
 
   SDL.destroyWindow window
   SDL.quit

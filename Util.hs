@@ -2,6 +2,7 @@ module Util
 ( assertM
 , esp
 , eesp
+, feesp
 , sp
 , msp
 , fromLeftReal
@@ -21,6 +22,9 @@ esp a = unsafePerformIO $ do
 eesp s a = unsafePerformIO $ do
   putStrLn $ show $ s
   return a
+
+-- Fake ones for quickly disabling
+feesp s a = a
 
 sp x = unpack $ toStrict $ pShowNoColor $ x
 msp x = putStrLn $ sp x
