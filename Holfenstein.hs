@@ -8,6 +8,8 @@ import Prelude hiding (any, mapM_)
 import Codec.Picture
 import Control.Exception.Base
 import Control.Monad hiding (mapM_)
+import Control.Monad.ST
+import Data.Array.ST
 import Data.Bits
 import Data.Char (ord)
 import Data.Foldable hiding (elem)
@@ -729,13 +731,23 @@ frBufferAdd (FRBuffer es tot num) e | num == frBufferLen = FRBuffer [e] e 1
 frBufferUpdate :: FRBuffer -> Double -> (Double, FRBuffer)
 frBufferUpdate frBuf e = (frBufferAvg frBuf, frBufferAdd frBuf e)
 
+{-
+buildPair = do arr <- newArray (1,10) 37 :: ST s (STArray s Int Int)
+               a <- readArray arr 1
+               writeArray arr 1 64
+               b <- readArray arr 1
+               c <- getElems arr
+               return c
+-}
+
 main :: IO ()
 main = do
+  --msp $ show $ runST buildPair
+  --exitWith ExitSuccess
   frabT <- readFrab "map.txt"
   msp frabT
   let frab = transposeFrab frabT
   msp frab
-  --exitWith ExitSuccess
   texes <- readTexes
   putStrLn $ show texes
   let wts = worldToScreen frab
@@ -836,7 +848,7 @@ main = do
 
       unless quit (loop now (theta + 2 `mod` 360) eye ang newKeySet newFRBuf)
 
-  loop startNow (0 :: Int) (V2 1.6 5.3) (pi / 2) S.empty frBufferEmpty
+  loop startNow (0 :: Int) (V2 40.5 7.5) (pi / 2) S.empty frBufferEmpty
 
   SDL.destroyWindow window
   SDL.quit
