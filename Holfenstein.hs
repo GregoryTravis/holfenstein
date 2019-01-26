@@ -529,9 +529,12 @@ castRaysI frab frabT eye dirs = runST $
      mapM_ (gorb) (zip [0..] dirs)
      getElems arr
 
+-- bool is interpolated?
+data Hit = Hit WallPt Bool
+
 --castRaysB :: Frab -> Frab -> V2 Double -> [V2 Double] -> [Maybe WallPt]
 castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
-  do arr <- newArray (0, last) Nothing :: ST s (STArray s Int (Maybe WallPt))
+  do arr <- newArray (0, last) Nothing :: ST s (STArray s Int (Maybe Hit))
      let  hab s e
             -- | TR.trace (show ("hab", s, e)) False = undefined
             | s == e = return ()
@@ -543,12 +546,13 @@ castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
                                      in do cast m
                                            hab s m
                                            hab m e
-          cast i = writeArray arr i $  castRay frab frabT eye (signorm (dirs ! i))
-          sameHit a b = do (Just aHit) <- readArray arr a
-                           (Just bHit) <- readArray arr b
+          cast i = writeArray arr i $ case castRay frab frabT eye (signorm (dirs ! i)) of Just wpt -> Just (Hit wpt False)
+                                                                                          Nothing -> Nothing
+          sameHit a b = do (Just (Hit aHit _)) <- readArray arr a
+                           (Just (Hit bHit _)) <- readArray arr b
                            return $ sameWall aHit bHit
           interpolate s e = do
-            (Just hit) <- readArray arr s
+            (Just (Hit hit _)) <- readArray arr s
             case hit of (Hor fx y) -> mapM_ (hguvv y) [(s+1)..(e-1)]
                         (Ver x fy) -> mapM_ (vguvv x) [(s+1)..(e-1)]
             where hguvv wy i = writeArray arr i (Just iHit)
@@ -557,14 +561,14 @@ castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
                           dx = dy * (dirx / diry)
                           hx = ex + dx
                           hy = wy
-                          iHit = Hor hx hy
+                          iHit = Hit (Hor hx hy) True
                   vguvv wx i = writeArray arr i (Just iHit)
                     where (V2 dirx diry) = dirs ! i
                           dx = (fromIntegral wx) - ex
                           dy = dx * (diry / dirx)
                           hx = wx
                           hy = ey + dy
-                          iHit = Ver hx hy
+                          iHit = Hit (Ver hx hy) True
                   correct i = castRay frab frabT eye (signorm (dirs ! i))
      cast 0
      cast last
@@ -577,7 +581,7 @@ castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
 renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where renderWall x eye hit dir ptr pitch = do
           case hit of
-            Just hit -> do
+            Just (Hit hit _) -> do
               let tex = getTexForHit frab hit worldTexMap
               let hh = wallHalfScreenHeight eye eyeDir (wallPtToV2 hit)
               let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) tex
