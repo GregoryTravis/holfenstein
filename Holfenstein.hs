@@ -514,23 +514,13 @@ renderWorld' frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs pt
         --dirs = [V2 (-0.9) (-1.0)]
 --circlePoints radius startAng step = map cp [startAng, startAng + step .. pi * 2]
 
-
---castRays :: Frab -> Frab -> V2 Double -> [V2 Double] -> [Maybe WallPt]
---castRays frab frabT eye dirs = map (\dir -> castRay frab frabT eye (signorm dir)) dirs
-
---castRaysB :: Frab -> Frab -> V2 Double -> [V2 Double] -> () -- -> [Maybe WallPt]
-castRaysB frab frabT eye dirs = runST $
+castRaysI frab frabT eye dirs = runST $
   do arr <- newArray (0, (length dirs)-1) Nothing :: ST s (STArray s Int (Maybe WallPt))
-     --a <- readArray arr 1
-     --writeArray arr 1 (Just (Ver 3 3.3))
-     --b <- readArray arr 1
      let gorb (i, dir) = do
-            a <- readArray arr 1
             writeArray arr i $ castRay frab frabT eye (signorm dir)
-            return $ Just (Ver 2 2.2)
-     vee <- mapM (gorb) (zip [0..] dirs)
-     c <- getElems arr
-     return c
+            return ()
+     mapM_ (gorb) (zip [0..] dirs)
+     getElems arr
 
 buildPair = runST $ do arr <- newArray (1,10) 37 :: ST s (STArray s Int Int)
                        a <- readArray arr 1
@@ -554,7 +544,7 @@ renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr
                       in fillVStrip clippedVStrip ptr pitch
                 else drawVStrip (horPos hit) unclippedVStrip ptr pitch
             Nothing -> return ()
-        hits = castRaysB frab frabT eye dirs
+        hits = castRaysI frab frabT eye dirs
         castAndShowL eye dirs ptr pitch = do
           mapM_ (\(x, dir, hit) -> renderWall x eye hit dir ptr pitch) (zip3 [0..] dirs hits)
         --dirs = [V2 1.0 0.5, V2 1.0 (-0.5)]
