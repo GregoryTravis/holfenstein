@@ -54,81 +54,12 @@ screenWidth, screenHeight :: Int
 (screenWidth, screenHeight) = (640, 480)
 --(screenWidth, screenHeight) = (320, 240)
 
-drawVStrip = fastestTextureVStripH
-
-hSampler :: Int -> Int-> PackedColor
-hSampler x y
-  | (isOdd x == isOdd y) = lightGray
-  | otherwise = darkGray
-  where checkSize = 8
-        isOdd x = (x `div` checkSize) `mod` 2
-
-clipTexCoords' w h x y = (clip x 0 w, clip y 0 h)
-  where clip x a b | x < a = a
-                   | x >= b = b-1
-                   | otherwise = x
-
-fasterHImageSampler :: Tex -> Int -> Int-> IO PackedColor
-fasterHImageSampler (Tex w h ptr) x y = peekElemOff ptr (cx + (w * cy))
-  where (cx, cy) = clipTexCoords' w h x y
-
 calcTexCoord :: V2 Int -> V2 Double -> Int -> Double
 calcTexCoord (V2 sy0 sy1) (V2 ty0 ty1) sy =
   ty0 + (((syf - sy0f) / (sy1f - sy0f)) * (ty1 - ty0))
-  where sy0f = fromIntegral sy0
-        sy1f = fromIntegral sy1
-        syf = fromIntegral sy
-
-slowTextureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-slowTextureVStrip horPos v@(VStrip x y0 y1 tex@(Tex tw th _)) ptr pitch =
-  mapM_ foo [cy0..cy1]
-  where foo y = do col <- fasterHImageSampler tex tx (ty y)
-  --where foo y = do let col = hImageSampler tex tx (ty y)
-                   drawPoint (V2 x y) (fromIntegral col) ptr pitch
-        tx = floor (horPos * (fromIntegral tw))
-        fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral th)) y
-
-        -- More accurate
-        --ty y = floor (fty y)
-
-        -- Messy
-        ty y = floor $ fty0 + ((fromIntegral (y - cy0)) * dfty)
-        fty0 = fty cy0
-        dfty = (fty 1) - (fty 0)
-
-        -- clipped screen coords
-        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 tex) -> (cy0, cy1)
-
--- Incrementally calculate ty
-lessSlowTextureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-lessSlowTextureVStrip horPos v@(VStrip x y0 y1 tex@(Tex tw th _)) ptr pitch =
-  loop cy0 fty0
-  --mapM_ foo [cy0..cy1]
-  where loop cy fty = do col <- sampler tx (floor fty)
-                         drawPoint (V2 x cy) (fromIntegral col) ptr pitch
-                         if cy < cy1 then loop (cy + 1) (fty + dfty) else return ()
-        tx = floor (horPos * (fromIntegral tw))
-        fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral th)) y
-        fty0 = fty cy0
-        dfty = (fty 1) - (fty 0)
-        -- clipped screen coords
-        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 tex) -> (cy0, cy1)
-
--- Inline drawPoint
-textureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-textureVStrip horPos v@(VStrip x y0 y1 tex@(Tex tw th _)) ptr pitch =
-  loop startPtr cy0 fty0
-  where loop curPtr cy fty = do col <- sampler tx (floor fty)
-                                poke curPtr col
-                                if cy < cy1 then loop (plusPtr curPtr dPtr) (cy + 1) (fty + dfty) else return ()
-        startPtr = plusPtr ptr ((cy0 * pitch) + (x*4))
-        dPtr = pitch
-        tx = floor (horPos * (fromIntegral tw))
-        fty y = calcTexCoord (V2 y0 y1) (V2 0.0 (fromIntegral th)) y
-        fty0 = fty cy0
-        dfty = (fty 1) - (fty 0)
-        -- clipped screen coords
-        (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 tex) -> (cy0, cy1)
+    where sy0f = fromIntegral sy0
+          sy1f = fromIntegral sy1
+          syf = fromIntegral sy
 
 -- Native
 fastestTextureVStripH :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
@@ -145,41 +76,6 @@ fastestTextureVStripH horPos v@(VStrip x y0 y1 (Tex w h texPtr)) ptr pitch =
         dfty = (fty 1) - (fty 0)
         -- clipped screen coords
         (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 tex) -> (cy0, cy1)
-        --toCDouble :: Double -> CDouble
-        --toCDouble x = x + 0.0
-
-slowFillVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
-slowFillVStrip (VStrip x y0 y1 tex) ptr pitch = drawLine (Line (V2 x y0) (V2 x y1)) white ptr pitch
-
-fastFillVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
-fastFillVStrip (VStrip x y0 y1 tex) ptr pitch = do
-  mapM_ foo [y0..y1]
-  where foo y = drawPoint (V2 x y) white ptr pitch
-
-fasterFillVStrip :: VStrip -> Ptr Word32 -> Int -> IO ()
-fasterFillVStrip (VStrip x y0 y1 tex) ptr pitch = do
-  assertM () (inScreenBounds (V2 x y0) && inScreenBounds (V2 x y1) && y0 <= y1)
-    foo start
-    where foo writePtr = 
-            if writePtr >= end
-              then
-                return ()
-              else do
-                poke writePtr white
-                foo (plusPtr writePtr lineSize)
-          lineSize = pitch
-          start = plusPtr ptr ((y0 * lineSize) + (x*4))
-          end = plusPtr ptr ((y1 * lineSize) + (x*4))
-
-fastestFillVStripH :: VStrip -> Ptr Word32 -> Int -> IO ()
-fastestFillVStripH (VStrip x y0 y1 tex) ptr pitch = do
-  assertM () (inScreenBounds (V2 x y0) && inScreenBounds (V2 x y1) && y0 <= y1) $
-    fastestFillVStrip start (fromIntegral (y1 - y0 + 1)) (fromIntegral (pitch `div` 4)) (fromIntegral white)
-    where lineSize = pitch
-          start = plusPtr ptr ((y0 * lineSize) + (x*4))
-          --end = plusPtr ptr ((y1 * lineSize) + (x*4))
-
-fillVStrip = fastestFillVStripH
 
 drawLine :: Line Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
 drawLine (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
@@ -376,10 +272,7 @@ renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr
               let tex = getTexForHit frab h worldTexMap
               let hh = wallHalfScreenHeight eye eyeDir (wallPtToV2 hit)
               let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) tex
-              if False
-                then let clippedVStrip = clipToScreen unclippedVStrip
-                      in fillVStrip clippedVStrip ptr pitch
-                else drawVStrip (horPos hit) unclippedVStrip ptr pitch
+              fastestTextureVStripH (horPos hit) unclippedVStrip ptr pitch
             Nothing -> return ()
         hits = castRaysB frab frabT eye dirs
         castAndShowL eye dirs ptr pitch = do
