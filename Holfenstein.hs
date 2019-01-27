@@ -41,6 +41,7 @@ import System.IO
 
 import Gfx
 import Img
+import Line
 import Tex
 import Util
 
@@ -253,10 +254,6 @@ drawLines lines ptr pitch =
   let dl line = drawLine line white ptr pitch
    in mapM_ dl lines
 
-boxAround :: V2 Double -> [Line Double]
-boxAround center = box (center - boxOffset) (center + boxOffset)
-  where boxOffset = V2 0.05 0.05
-
 toOffset (V2 x y) pitch = y * (pitch `div` 4) + x
 
 inScreenBounds (V2 x y) = x >= 0 && y >= 0 && x < screenWidth && y < screenHeight
@@ -286,20 +283,6 @@ clearCanvas2 wordPtr pitch = do
   where half = (pitch * screenHeight) `div` 2
 
 floorV (V2 x y) = V2 (floor x) (floor y)
-
-data Line a = Line (V2 a) (V2 a) deriving Show
-scale :: Num a => V2 a -> Line a -> Line a
-scale s (Line a b) = Line (s * a) (s * b)
-translate v (Line a b) = Line (v + a) (v + b)
-scaleLines s lines = map (scale s) lines
-translateLines v lines = map (translate v) lines
-
-box :: V2 a -> V2 a -> [Line a]
-box (V2 x0 y0) (V2 x1 y1) = [Line a b, Line b c, Line c d, Line d a]
-  where a = V2 x0 y0
-        b = V2 x1 y0
-        c = V2 x1 y1
-        d = V2 x0 y1
 
 -- World is made of unit cubes
 -- Cubes are identified by their least corner coords
