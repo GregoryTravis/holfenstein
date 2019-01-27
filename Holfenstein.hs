@@ -2,7 +2,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main (main) where
 
-import Data.Time.Clock.POSIX (getPOSIXTime)
 import Prelude hiding (any, mapM_)
 import Control.Exception.Base
 import Control.Monad hiding (mapM_)
@@ -12,6 +11,7 @@ import Data.Bits
 import Data.Char (ord, toUpper)
 import Data.Foldable hiding (elem)
 import Data.List (nub)
+import Data.Time.Clock.POSIX (getPOSIXTime)
 import qualified Data.Vector as V
 import Data.Vector ((!))
 import qualified Data.Map as M
@@ -38,6 +38,7 @@ import System.Exit
 import System.IO
 
 import Gfx
+import FPS
 import Img
 import Line
 import Map
@@ -542,16 +543,6 @@ readFrab filename = do
 
 transposeFrab (Frab world (w, h)) = Frab (transposeAA world) (h, w)
 
-frBufferLen = 20
-data FRBuffer = FRBuffer [Double] Double Int
-frBufferEmpty = FRBuffer [] 0 0
-frBufferAvg (FRBuffer _ _ 0) = 0
-frBufferAvg (FRBuffer es tot num) = tot / (fromIntegral num)
-frBufferAdd (FRBuffer es tot num) e | num == frBufferLen = FRBuffer [e] e 1
-                                    | otherwise = FRBuffer (e : es) (tot + e) (num + 1)
-frBufferUpdate :: FRBuffer -> Double -> (Double, FRBuffer)
-frBufferUpdate frBuf e = (frBufferAvg frBuf, frBufferAdd frBuf e)
-
 processEvents :: Frab -> Wts -> KeySet -> (V2 Double) -> Double -> IO (KeySet, V2 Double, Double, Bool)
 processEvents frab wts prevKeySet prevEye prevAng = do
   events <- map SDL.eventPayload <$> SDL.pollEvents
@@ -609,10 +600,8 @@ main = do
     screenCenter = P (V2 (fromIntegral (screenWidth `div` 2)) (fromIntegral (screenHeight `div` 2)))
 
     loop lastNow theta prevEye prevAng keySet frBuf = do
-      now <- getPOSIXTime 
-      let instantFPS :: Double
-          instantFPS = 1.0 / (realToFrac (now - lastNow))
-      let (fps, newFRBuf) = frBufferUpdate frBuf instantFPS
+      (now, fps, newFRBuf) <- fps lastNow frBuf
+      --putStrLn $ "FPS " ++ (show fps)
 
       (newKeySet, eye, ang, quit) <- processEvents frab wts keySet prevEye prevAng
 
