@@ -552,6 +552,19 @@ frBufferAdd (FRBuffer es tot num) e | num == frBufferLen = FRBuffer [e] e 1
 frBufferUpdate :: FRBuffer -> Double -> (Double, FRBuffer)
 frBufferUpdate frBuf e = (frBufferAvg frBuf, frBufferAdd frBuf e)
 
+processEvents :: Frab -> Wts -> KeySet -> (V2 Double) -> Double -> IO (KeySet, V2 Double, Double, Bool)
+processEvents frab wts prevKeySet prevEye prevAng = do
+  events <- map SDL.eventPayload <$> SDL.pollEvents
+  let keyEvents = getKeyEvents events
+  let newKeySet = updateKeySet prevKeySet keyEvents
+  let quit = SDL.QuitEvent `elem` events || S.member 27 newKeySet
+
+  let (kEye, ang) = updateEyeAng (prevEye, prevAng) newKeySet
+  let pEye = physics frab prevEye kEye
+  let eye = case getCursorPos events of Just (x, y) -> case screenToWorld wts (x, y) of (x, y) -> (if outsideWorldF frab (V2 x y) then pEye else (V2 x y))
+                                        Nothing -> pEye
+  return (newKeySet, eye, ang, quit)
+
 main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
@@ -600,15 +613,9 @@ main = do
       let instantFPS :: Double
           instantFPS = 1.0 / (realToFrac (now - lastNow))
       let (fps, newFRBuf) = frBufferUpdate frBuf instantFPS
-      events <- map SDL.eventPayload <$> SDL.pollEvents
-      let keyEvents = getKeyEvents events
-      let newKeySet = updateKeySet keySet keyEvents
-      let quit = SDL.QuitEvent `elem` events || S.member 27 newKeySet
 
-      let (kEye, ang) = updateEyeAng (prevEye, prevAng) newKeySet
-      let pEye = physics frab prevEye kEye
-      let eye = case getCursorPos events of Just (x, y) -> case screenToWorld wts (x, y) of (x, y) -> (if outsideWorldF frab (V2 x y) then pEye else (V2 x y))
-                                            Nothing -> pEye
+      (newKeySet, eye, ang, quit) <- processEvents frab wts keySet prevEye prevAng
+
       withFramebuffer targetTexture $ drawAll wts frab frabT worldTexMap eye ang
 
       setAsRenderTarget renderer Nothing
