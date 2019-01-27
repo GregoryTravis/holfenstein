@@ -28,16 +28,14 @@ import Foreign.Storable (peek, poke, peekElemOff, pokeElemOff)
 import Linear
 import Numeric (showHex)
 import SDL (($=), unwrapKeycode, keysymKeycode, unwrapKeycode)
-import SDL.Event --(mouseMotionEventPos, EventPayload(MouseMotionEvent), MouseMotionEventData)
---import SDL.Image
+import SDL.Event
 import qualified SDL.Raw.Types as RT
 import SDL.Vect
-import qualified SDL.Video.Renderer as VR --(lockTexture, unlockTexture, surfacePixels, surfaceFormat, surfaceDimensions)
+import qualified SDL.Video.Renderer as VR
 import qualified SDL
 import System.CPUTime (getCPUTime)
 import System.Exit
 import System.IO
---import Unsafe.Coerce
 
 import Gfx
 import Img
@@ -88,7 +86,6 @@ withFramebuffer (Texture t _) f = do
   return result
 
 drawVStrip = fastestTextureVStripH
---drawVStrip = slowTextureVStrip
 
 hSampler :: Int -> Int-> PackedColor
 hSampler x y
@@ -102,15 +99,7 @@ clipTexCoords' w h x y = (clip x 0 w, clip y 0 h)
                    | x >= b = b-1
                    | otherwise = x
 
-{-
-hImageSampler :: Tex -> Int -> Int-> PackedColor
---hImageSampler _ x y | TR.trace (show ("hIm", x, y)) False = undefined
-hImageSampler (Tex image _ _ _) x y = packPixel $ pixelAt image cx cy
-  where (cx, cy) = clipTexCoords image x y
--}
-
 fasterHImageSampler :: Tex -> Int -> Int-> IO PackedColor
---hImageSampler _ x y | TR.trace (show ("hIm", x, y)) False = undefined
 fasterHImageSampler (Tex w h ptr) x y = peekElemOff ptr (cx + (w * cy))
   where (cx, cy) = clipTexCoords' w h x y
 
@@ -239,15 +228,11 @@ drawLine (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
         dy :: Double
         dy = fromIntegral idy
         step :: V2 Double -> V2 Double -> Int -> IO ()
-        --step a d c | TR.trace ("step " ++ (show a) ++ " " ++ (show d) ++ " " ++ (show c)) False = undefined
         step a@(V2 x y) delta count
           | count == 0 = return ()
           | otherwise = do
               drawPoint (V2 (floor x) (floor y)) color ptr pitch
               step (a + delta) delta (count - 1)
-  --where (delta, count) = bleh a b
-        --bleh :: V2 Int -> V2 Int -> (V2 Double, Int)
-        --bleh a b | isVert a b -> ((V2 (dx / dy) 1)
 
 drawLines :: [Line Int] -> Ptr Word32 -> Int -> IO ()
 drawLines lines ptr pitch =
@@ -257,7 +242,6 @@ drawLines lines ptr pitch =
 toOffset (V2 x y) pitch = y * (pitch `div` 4) + x
 
 inScreenBounds (V2 x y) = x >= 0 && y >= 0 && x < screenWidth && y < screenHeight
---inScreenBounds _ = True
 
 drawPoint :: V2 Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
 drawPoint v c ptr pitch = do
@@ -298,7 +282,6 @@ data Frab = Frab World (Int, Int) deriving Show
 -- Just one texture in the world for now
 data WorldTexMap = WorldTexMap (M.Map Char Tex)
 --getTexForHit w h (WorldTexMap t) | TR.trace (show ("gT", h, t, floorV $ wallPtToV2 h, (case (floorV $ wallPtToV2 h) of (V2 x y) -> getMaterial world x y))) False = undefined
--- Uncomment to get black for interpolated strips
 darkenInterpolated = False
 getTexForHit frab (Hit hit interpolated) (WorldTexMap t) = fromJust $ M.lookup (darkenMaybe texChar) t
   where texChar = case solidOf (sidesOf hit) of (x, y) -> getMaterial frab x y
@@ -311,24 +294,8 @@ getTexForHit frab (Hit hit interpolated) (WorldTexMap t) = fromJust $ M.lookup (
         sidesOf (Hor fx y) = let x = floor fx in ((x, y-1), (x, y))
         sidesOf (Ver x fy) = let y = floor fy in ((x-1, y), (x, y))
         darkenMaybe c = if darkenInterpolated && interpolated then (toUpper c) else c
-        --materialOf world (Hor fx y)
-          -- | isSolid world x (y-1) && (! (isSolid world x y)) = getMaterial world x (y-1)
-          -- | (! (isSolid world x (y-1))) && isSolid world x y = getMaterial world x y
-        --materialOf world (Hor fx y)
-          -- | isSolid world x (y-1) && (! (isSolid world x y)) = getMaterial world x (y-1)
-          -- | (! (isSolid world x (y-1))) && isSolid world x y = getMaterial world x y
-          --where x = floor fx
-        --(V2 x y) = floorV $ wallPtToV2 hit
---getTexForHit world hit (WorldTexMap t) = fromJust $ M.lookup 's' t
-
---world = transposeAA worldMap
---worldTransposed = transposeAA world
 
 allSameLength xs = length (nub (map length xs)) == 1
---worldIsSquare = allSameLength world
---blah = assert worldIsSquare ()
---worldSize world = V2 (length world) (length (world !! 0))
---(V2 worldWidth worldHeight) = worldSize world
 outsideWorld :: Frab -> Int -> Int -> Bool
 outsideWorld (Frab _ (w, h)) x y = x < 0 || y < 0 || x >= w || y >= h
 outsideWorldF :: Frab -> V2 Double -> Bool
@@ -367,8 +334,6 @@ transposeMaybeHit Nothing = Nothing
 horPos (Hor x y) = case properFraction x of (_, hp) -> hp
 horPos (Ver x y) = case properFraction y of (_, hp) -> hp
 
---getWallTex :: WallPt -> World Tex
-
 transposeV2 (V2 x y) = V2 y x
 
 doCastTr = False
@@ -379,7 +344,6 @@ castRay :: Frab -> Frab -> V2 Double -> V2 Double -> Maybe WallPt
 --castRay w a b | castTr ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
 castRay frab frabT eye@(V2 ex ey) dir@(V2 dx dy)
   | (abs dy) <= (abs dx) = stepRay frab eye (eye + firstStep) unitStep slope
-  -- This is a terribly egregious hack
   | otherwise = transposeMaybeHit (castRay frabT frab (transposeV2 eye) (transposeV2 dir))
   where slope = dy / dx
         firstStep = V2 firstVerDx firstVerDy
@@ -409,16 +373,13 @@ worldToScreen (Frab world (w, h)) = Wts scale translate
         vScale = (fromIntegral (screenHeight - 2 * vMargin)) / (fromIntegral (h + 2))
         scale = min hScale vScale
         translate = min hMargin vMargin
---(wtsScale, wtsTranslate) = worldToScreen
 
 toWorldCoordinate :: Wts -> Int -> Double
---toWorldCoordinate ix = case worldToScreen of (s, t) -> ((fromIntegral ix)-(fromIntegral t)) / s --(fromIntegral s)
 toWorldCoordinate (Wts s t) ix = ((fromIntegral ix) - (fromIntegral t)) / s
 
 forDisplay :: Num a => Wts -> [Line a] -> [Line a]
 forDisplay (Wts wtsScale wtsTranslate) lines = 
   translateLines (V2 (fromIntegral wtsTranslate) (fromIntegral wtsTranslate)) (scaleLines (fromIntegral (floor wtsScale)) lines)
---forDisplay lines = case worldToScreen of (s, t) -> translateLines (V2 t t) (scaleLines (V2 s s) lines)
 forDisplayF :: Wts -> [Line Double] -> [Line Int]
 forDisplayF wts lines = map floorL (forDisplay wts lines)
   where floorL (Line a b) = Line (floorV a) (floorV b)
@@ -442,14 +403,12 @@ castRaysI frab frabT eye dirs = runST $
      mapM_ (gorb) (zip [0..] dirs)
      getElems arr
 
--- bool is interpolated?
+-- Boolb is interpolated?
 data Hit = Hit WallPt Bool
 
---castRaysB :: Frab -> Frab -> V2 Double -> [V2 Double] -> [Maybe WallPt]
 castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
   do arr <- newArray (0, last) Nothing :: ST s (STArray s Int (Maybe Hit))
      let  hab s e
-            -- | TR.trace (show ("hab", s, e)) False = undefined
             | s == e = return ()
             | s == e-1 = return ()
             | otherwise = do isSameHit <- sameHit s e
@@ -490,7 +449,6 @@ castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
   where dirs = V.fromList dirsL
         last = (length dirs) - 1
 
--- Refactored -- but is it slower?
 renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where renderWall x eye hit dir ptr pitch = do
           case hit of
@@ -517,15 +475,11 @@ drawEye wts eye ang ptr pitch = do
   where eyeLine = Line eye (eye + angToDir ang)
 
 drawAll wts frab frabT worldTexMap eye ang ptr pitch = do
-  --gfx ptr 23
-  --nPtr <- gfx2 ptr 24
-  --msp (ptr, nPtr, minusPtr nPtr ptr)
   clearCanvas2 ptr pitch
   renderWorld frab frabT worldTexMap eye ang ptr pitch
   ifShowMap $ drawMap wts frab ptr pitch
   ifShowMap $ drawEye wts eye ang ptr pitch
 
---data PressRelease = Press | Release
 data KeyEvent = KeyEvent Int InputMotion deriving (Eq, Ord, Show)
 type KeySet = S.Set Int
 
@@ -589,27 +543,6 @@ viewPlanePoints :: Int -> V2 Double -> Double -> [V2 Double]
 viewPlanePoints numPoints eye ang = lerpVVs rotatedViewPlane numPoints
   where rotatedViewPlane = ((multMV rM viewPlaneLeft) + eye, (multMV rM viewPlaneRight) + eye)
         rM = rotMatrix ang
-
-{-
-castDirs :: V2 Double -> Double -> [V2 Double]
-castDirs eye ang = map dirForColumn $ viewPlanePoints eye ang
-  where dirForColumn :: V2 Double -> V2 Double
-        dirForColumn pos = signorm (eye - pos)
--}
-
-{-
-boxPoints t pts = withFramebuffer t foo
-  where foo ptr pitch = do
-          mapM_ bar pts
-            where bar pt = drawLines (forDisplayF (boxAround pt)) ptr pitch
--}
-
---bong eye t = boxPoints t $ viewPlanePoints eye (pi / 4)
-
---thang :: V2 Double -> V2 Double -> IO ()
-thang eye dir t = withFramebuffer t $ thung eye dir
-  where thung eye dir ptr pitch = do putStrLn $ show ("thung", eye, dir)
-                                     return ()
 
 dAng = 0.1
 dMove = 0.1
@@ -696,13 +629,9 @@ main = do
 
   --exitWith ExitSuccess
   frabT <- readFrab "map.txt"
-  --msp frabT
   let frab = transposeFrab frabT
-  --msp frab
   texes <- readTexes
-  --putStrLn $ show texes
   let wts = worldToScreen frab
-  --msp wts
 
   let worldTexMap = WorldTexMap texes
 
@@ -742,56 +671,19 @@ main = do
       let instantFPS :: Double
           instantFPS = 1.0 / (realToFrac (now - lastNow))
       let (fps, newFRBuf) = frBufferUpdate frBuf instantFPS
-      --putStrLn $ "FPS " ++ (show fps)
-      --putStrLn $ "LOOP " ++ (show theta)
-      --withFramebuffer targetTexture goof2
-      --let eye = (V2 1.1 1.1) + ((V2 20.0 15.0) * ((fromIntegral theta) / 360.0))
-      --let eye = (V2 6.6 1.1) + ((V2 0.0 15.0) * ((fromIntegral theta) / 360.0))
-      --let eye = (V2 3.9 3.2)
       events <- map SDL.eventPayload <$> SDL.pollEvents
-      --msp events
       let keyEvents = getKeyEvents events
       let newKeySet = updateKeySet keySet keyEvents
-      --if newKeySet /= keySet then msp newKeySet else return ()
       let quit = SDL.QuitEvent `elem` events || S.member 27 newKeySet
 
-      --putStrLn $ show $ eye
       let (kEye, ang) = updateEyeAng (prevEye, prevAng) newKeySet
       let pEye = physics frab prevEye kEye
-      --if pEye /= kEye then msp ("fiz", prevEye, kEye, pEye) else return ()
       let eye = case getCursorPos events of Just (x, y) -> case screenToWorld wts (x, y) of (x, y) -> (if outsideWorldF frab (V2 x y) then pEye else (V2 x y))
                                             Nothing -> pEye
-      --let ang = prevAng
-      --msp $ ("ang", ang)
       withFramebuffer targetTexture $ drawAll wts frab frabT worldTexMap eye ang
-      --thang eye ang targetTexture
-      --bong eye targetTexture
-
-{-
-      setAsRenderTarget renderer (Just targetTexture)
-
-      SDL.rendererDrawColor renderer $= V4 maxBound maxBound maxBound maxBound
-      SDL.clear renderer
-
-      SDL.rendererDrawColor renderer $= V4 maxBound 0 0 maxBound
-      SDL.fillRect renderer (Just $ SDL.Rectangle (P $ V2 (screenWidth `div` 4) (screenHeight `div` 4))
-                                                        (V2 (screenWidth `div` 2) (screenHeight `div` 2)))
-
-      SDL.rendererDrawColor renderer $= V4 0 0 maxBound maxBound
-      SDL.drawRect renderer (Just (SDL.Rectangle (P $ V2 (screenWidth `div` 6) (screenHeight `div` 6))
-                                                       (V2 (screenWidth * 2 `div` 3) (screenHeight * 2 `div` 3))))
-
-      SDL.rendererDrawColor renderer $= V4 0 maxBound 0 maxBound
-      SDL.drawLine renderer (P (V2 0 (screenHeight `div` 2))) (P (V2 screenWidth (screenHeight `div` 2)))
-
-      SDL.rendererDrawColor renderer $= V4 maxBound maxBound maxBound maxBound
-      for_ [0, 4 .. screenHeight] $ \i ->
-        SDL.drawPoint renderer (P (V2 (screenWidth `div` 2) i))
--}
 
       setAsRenderTarget renderer Nothing
 
-      --renderTexture renderer targetTexture 0 Nothing (Just (fromIntegral theta)) (Just screenCenter) Nothing
       renderTexture renderer targetTexture 0 Nothing (Just 0) (Just screenCenter) Nothing
 
       SDL.present renderer
