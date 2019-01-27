@@ -40,7 +40,11 @@ import System.IO
 import Gfx
 import Img
 import Line
+import Map
+import Math
+import Physics
 import Tex
+import Types
 import Util
 
 -- #if !MIN_VERSION_base(4,8,0)
@@ -266,18 +270,8 @@ clearCanvas2 wordPtr pitch = do
   return ()
   where half = (pitch * screenHeight) `div` 2
 
-floorV (V2 x y) = V2 (floor x) (floor y)
-
--- World is made of unit cubes
--- Cubes are identified by their least corner coords
--- Walls are identified by their least coord along their axis
--- Remember these are drawn upside down
-type World = [[Char]]
-
 transposeAA ([]:_) = []
 transposeAA xs = (map head xs) : transposeAA (map tail xs)
-
-data Frab = Frab World (Int, Int) deriving Show
 
 -- Just one texture in the world for now
 data WorldTexMap = WorldTexMap (M.Map Char Tex)
@@ -296,44 +290,6 @@ getTexForHit frab (Hit hit interpolated) (WorldTexMap t) = fromJust $ M.lookup (
         darkenMaybe c = if darkenInterpolated && interpolated then (toUpper c) else c
 
 allSameLength xs = length (nub (map length xs)) == 1
-outsideWorld :: Frab -> Int -> Int -> Bool
-outsideWorld (Frab _ (w, h)) x y = x < 0 || y < 0 || x >= w || y >= h
-outsideWorldF :: Frab -> V2 Double -> Bool
-outsideWorldF (Frab _ (wx, wy)) (V2 x y) = x < 0 || x >= (fromIntegral wx) + 1 || y < -1 || y > (fromIntegral wy) + 1
-
---isHorWall w x y | TR.trace (show ("isHorWall", x, y)) False = undefined
-isHorWall frab x y = (isSolid frab x (y - 1)) /= (isSolid frab x y)
-isVerWall frab x y = (isSolid frab (x - 1) y) /= (isSolid frab x y)
-isSolid :: Frab -> Int -> Int -> Bool
---isSolid x y | TR.trace (show ("iS", x, y, (length world), worldSize, (outsideWorld x y))) False = undefined
-isSolid frab x y = (getMaterial frab x y) /= ' '
-getMaterial :: Frab -> Int -> Int -> Char
---getMaterial w x y | TR.trace (show ("gM", x, y)) False = undefined
-getMaterial f@(Frab world _) x y
-  | outsideWorld f x y = ' '
-  | otherwise = ((world !! x) !! y)
-
-horToLine x y = Line (V2 x y) (V2 (x + 1) y)
-verToLine x y = Line (V2 x y) (V2 x (y + 1))
-
-allWalls frab@(Frab _ (w, h)) = [horToLine x y | x <- [0..w], y <- [0..h], isHorWall frab x y] ++ [verToLine x y | x <- [0..w], y <- [0..h], isVerWall frab x y]
-
-data WallPt = Ver Int Double | Hor Double Int deriving (Eq, Show)
-wallPtToV2 (Ver x y) = V2 (fromIntegral x) y
-wallPtToV2 (Hor x y) = V2 x (fromIntegral y)
-wallPtInt (Ver x y) = (x, floor y)
-wallPtInt (Hor x y) = (floor x, y)
-sameWall (Hor fx0 y0) (Hor fx1 y1) = y0 == y1 && ((floor fx0) == (floor fx1))
-sameWall (Ver x0 fy0) (Ver x1 fy1) = x0 == x1 && ((floor fy0) == (floor fy1))
-sameWall _ _ = False
-transposeHit (Hor x y) = Ver y x
-transposeHit (Ver x y) = Hor y x
-transposeMaybeHit (Just hit) = Just $ transposeHit hit
-transposeMaybeHit Nothing = Nothing
--- x postition of hit relative to wall origin
-horPos (Hor x y) = case properFraction x of (_, hp) -> hp
-horPos (Ver x y) = case properFraction y of (_, hp) -> hp
-
 transposeV2 (V2 x y) = V2 y x
 
 doCastTr = False
@@ -383,6 +339,11 @@ forDisplay (Wts wtsScale wtsTranslate) lines =
 forDisplayF :: Wts -> [Line Double] -> [Line Int]
 forDisplayF wts lines = map floorL (forDisplay wts lines)
   where floorL (Line a b) = Line (floorV a) (floorV b)
+
+horToLine x y = Line (V2 x y) (V2 (x + 1) y)
+verToLine x y = Line (V2 x y) (V2 x (y + 1))
+
+allWalls frab@(Frab _ (w, h)) = [horToLine x y | x <- [0..w], y <- [0..h], isHorWall frab x y] ++ [verToLine x y | x <- [0..w], y <- [0..h], isVerWall frab x y]
 
 drawMap wts frab = drawLines map
   where map = forDisplay wts (allWalls frab) -- translateLines (V2 100 100) (scaleLines 50 allWalls)
@@ -558,31 +519,6 @@ updateEyeAng (eye, ang) keySet = (newEye, newAng)
                           then eye - (dMove * forwards)
                           else eye
         forwards = multMV (rotMatrix ang) (V2 1.0 0.0)
-
-physics :: Frab -> V2 Double -> V2 Double -> V2 Double
-physics frab oEye@(V2 ox oy) nEye@(V2 nx ny) = V2 cnx cny
-  where (V2 ex ey) = floorV nEye
-        nSolid = isSolid frab ex ey
-        lSolid = isSolid frab (ex-1) ey
-        rSolid = isSolid frab (ex+1) ey
-        dSolid = isSolid frab ex (ey-1)
-        uSolid = isSolid frab ex (ey+1)
-        margin = 0.25
-        lMargin = ((fromIntegral ex) + margin)
-        rMargin = ((fromIntegral (ex+1)) - margin)
-        dMargin = ((fromIntegral ey) + margin)
-        uMargin = ((fromIntegral (ey+1)) - margin)
-        cnx = if lSolid && nx < lMargin
-                then lMargin
-                else if rSolid && nx > rMargin
-                  then rMargin
-                  else nx
-        cny = if dSolid && ny < dMargin
-                then dMargin
-                else if uSolid && ny > uMargin
-                  then uMargin
-                  else ny
-    
 
 readTexes :: IO (M.Map Char Tex)
 readTexes = do
