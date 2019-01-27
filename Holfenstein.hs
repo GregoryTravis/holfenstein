@@ -4,7 +4,6 @@ module Main (main) where
 
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import Prelude hiding (any, mapM_)
-import Codec.Picture
 import Control.Exception.Base
 import Control.Monad hiding (mapM_)
 import Control.Monad.ST
@@ -42,6 +41,7 @@ import System.IO
 --import Unsafe.Coerce
 
 import Gfx
+import Img
 import Util
 
 -- #if !MIN_VERSION_base(4,8,0)
@@ -77,28 +77,6 @@ setAsRenderTarget :: SDL.Renderer -> Maybe Texture -> IO ()
 setAsRenderTarget r Nothing = SDL.rendererRenderTarget r $= Nothing
 setAsRenderTarget r (Just (Texture t _)) = SDL.rendererRenderTarget r $= Just t
 
-data Color = Color Int Int Int deriving Show
-
-type PackedColor = Word32
-white = packColor $ Color 255 255 255
-lightGray = packColor $ Color 200 200 200
-darkGray = packColor $ Color 120 120 120
-
-packColor :: Color -> Word32
-packColor (Color r g b) =
-  fromIntegral $ (shift r 24) .|. (shift g 16) .|. (shift b 8) .|. 0xff
-
-unpackColor :: Word32 -> Color
-unpackColor w = (Color r g b)
-  where r = (shiftR r 24) .&. 0xff
-        g = (shiftR r 16) .&. 0xff
-        b = (shiftR r 8) .&. 0xff
-
-colorFade x y =
-  (shift red 24) .|. (shift green 16) .|. 0xff
-  where red = floor $ 255 * ((fromIntegral x) / (fromIntegral screenWidth))
-        green = floor $ 255 * ((fromIntegral y) / (fromIntegral screenHeight))
-
 withFramebuffer :: Texture -> (Ptr Word32 -> Int -> IO a) -> IO a
 withFramebuffer (Texture t _) f = do
   (ptr, (CInt pitch)) <- VR.lockTexture t Nothing
@@ -117,14 +95,6 @@ hSampler x y
   | otherwise = darkGray
   where checkSize = 8
         isOdd x = (x `div` checkSize) `mod` 2
-
---clipTexCoords i x y | TR.trace (show ("clip", x, y)) False = undefined
-clipTexCoords image x y =
-  let Image { imageWidth = w, imageHeight = h } = image
-   in (clip x 0 w, clip y 0 h)
-  where clip x a b | x < a = a
-                   | x >= b = b-1
-                   | otherwise = x
 
 clipTexCoords' w h x y = (clip x 0 w, clip y 0 h)
   where clip x a b | x < a = a
@@ -314,18 +284,6 @@ clearCanvas2 wordPtr pitch = do
   fillBytes (plusPtr wordPtr half) (fromIntegral 40) half
   return ()
   where half = (pitch * screenHeight) `div` 2
-
-goof2 :: Ptr Word32 -> Int -> IO ()
-goof2 wordPtr pitch = do
-  let writeFade (x, y) = let off = y * (pitch `div` 4) + x
-                          in pokeElemOff wordPtr off (colorFade x y)
-  mapM_ writeFade [(x, y)
-                      | x <- [0..((fromIntegral screenWidth :: Int)-1)]
-                      , y <- [0..((fromIntegral screenHeight :: Int)-1)]]
-  --let dl (x, y) = drawLine (Line (V2 x y) (V2 320 240)) (Color 255 255 255) wordPtr pitch
-   --in mapM_ dl ([(x, 200) | x <- [0, 10 .. 639]] ++
-                --[(x, 280) | x <- [0, 10 .. 639]])
-  return ()
 
 floorV (V2 x y) = V2 (floor x) (floor y)
 
@@ -714,13 +672,6 @@ data Tex = Tex Int Int (Ptr Word32)
 instance Show Tex where
   show (Tex w h _) = show (w, h)
 
-unpackPixel (PixelRGBA8 r g b a) = Color (fromIntegral r) (fromIntegral g) (fromIntegral b)
-
-type Vec2D a = V.Vector (V.Vector a)
-data Img = Img (Vec2D Color) Int Int
-
-pixAt (Img colors w h) x y = (colors ! y) ! x
-
 {-
 readTex :: String -> IO Tex
 readTex fileName = do
@@ -728,30 +679,12 @@ readTex fileName = do
   imgToTex img
 -}
 
-readImg :: String -> IO Img
-readImg fileName = do
-  res <- readImage fileName
-  let image = case res of (Right image) -> convertRGBA8 $ image
-  let Image { imageWidth = w, imageHeight = h } = image
-  let colors = V.fromList (map V.fromList [[unpackPixel $ pixelAt image x y | x <- [0..w-1]] | y <- [0..h-1]])
-  return $ Img colors w h
-
 imgToTex :: Img -> IO Tex
 imgToTex im@(Img colors w h) = do
   mem <- mallocBytes (w * h * 4) :: IO (Ptr Word32)
   mapM_ (copy mem w) [(x, y) | x <- [0..w-1], y <- [0..h-1]]
   return $ Tex w h mem
   where copy mem w (x, y) = do pokeElemOff mem (x + (y * w)) (packColor (pixAt im x y))
-
-mapImg :: (Color -> Color) -> Img -> Img
-mapImg f (Img colors w h) = Img ncolors w h
-  where colorsL = map V.toList (V.toList colors)
-        ncolorsL = map (map f) colorsL
-        ncolors = V.fromList (map V.fromList ncolorsL)
-
-darkenImg :: Img -> Img
-darkenImg = (mapImg darken)
-  where darken (Color r g b) = Color (r `div` 2) (g `div` 2) (b `div` 2) 
 
 readTexes :: IO (M.Map Char Tex)
 readTexes = do
