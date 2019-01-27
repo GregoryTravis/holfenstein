@@ -1,20 +1,26 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Window
-( Texture(..)
+( Texture
+, Window
 , blit
 , windowInit
 , windowTerm
+, withFramebuffer
 ) where
 
 import Control.Monad hiding (mapM_)
 import Data.Maybe
+import Data.Word (Word32)
 import Foreign.C.Types
+import Foreign.Ptr
 import SDL (($=), unwrapKeycode, keysymKeycode, unwrapKeycode)
 import SDL.Event
 import qualified SDL.Raw.Types as RT
 import SDL.Vect
 import qualified SDL.Video.Renderer as VR
 import qualified SDL
+
+data Window = Window SDL.Window SDL.Renderer Texture (Int, Int)
 
 data Texture = Texture SDL.Texture (V2 CInt)
 
@@ -37,7 +43,7 @@ setAsRenderTarget :: SDL.Renderer -> Maybe Texture -> IO ()
 setAsRenderTarget r Nothing = SDL.rendererRenderTarget r $= Nothing
 setAsRenderTarget r (Just (Texture t _)) = SDL.rendererRenderTarget r $= Just t
 
-windowInit :: Int -> Int -> IO (SDL.Window, SDL.Renderer, Texture)
+windowInit :: Int -> Int -> IO Window
 windowInit screenWidth screenHeight = do
   SDL.initialize [SDL.InitVideo]
 
@@ -65,14 +71,23 @@ windowInit screenWidth screenHeight = do
 
   targetTexture <- createBlank renderer (V2 (fromIntegral screenWidth) (fromIntegral screenHeight)) SDL.TextureAccessStreaming
 
-  return (window, renderer, targetTexture)
+  return $ Window window renderer targetTexture (screenWidth, screenHeight)
 
-blit renderer targetTexture screenWidth screenHeight = do
+withFramebuffer :: Window -> (Ptr Word32 -> Int -> IO a) -> IO a
+withFramebuffer (Window _ _ (Texture t _) _) f = do
+  (ptr, (CInt pitch)) <- VR.lockTexture t Nothing
+  let wordPtr :: Ptr Word32
+      wordPtr = castPtr ptr
+  result <- f wordPtr (fromIntegral pitch :: Int)
+  VR.unlockTexture t
+  return result
+
+blit (Window window renderer targetTexture (screenWidth, screenHeight)) = do
   let screenCenter = P (V2 (fromIntegral (screenWidth `div` 2)) (fromIntegral (screenHeight `div` 2)))
   setAsRenderTarget renderer Nothing
   renderTexture renderer targetTexture 0 Nothing (Just 0) (Just screenCenter) Nothing
   SDL.present renderer
 
-windowTerm window = do
+windowTerm (Window window renderer targetTexture _) = do
   SDL.destroyWindow window
   SDL.quit

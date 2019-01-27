@@ -60,15 +60,6 @@ screenWidth, screenHeight :: Int
 (screenWidth, screenHeight) = (640, 480)
 --(screenWidth, screenHeight) = (320, 240)
 
-withFramebuffer :: Texture -> (Ptr Word32 -> Int -> IO a) -> IO a
-withFramebuffer (Texture t _) f = do
-  (ptr, (CInt pitch)) <- VR.lockTexture t Nothing
-  let wordPtr :: Ptr Word32
-      wordPtr = castPtr ptr
-  result <- f wordPtr (fromIntegral pitch :: Int)
-  VR.unlockTexture t
-  return result
-
 drawVStrip = fastestTextureVStripH
 
 hSampler :: Int -> Int-> PackedColor
@@ -548,7 +539,7 @@ main = do
 
   let worldTexMap = WorldTexMap texes
 
-  (window, renderer, targetTexture) <- windowInit screenWidth screenHeight
+  window <- windowInit screenWidth screenHeight
 
   startNow <- getPOSIXTime 
 
@@ -559,9 +550,9 @@ main = do
 
       (newKeySet, eye, ang, quit) <- processEvents frab wts keySet prevEye prevAng
 
-      withFramebuffer targetTexture $ drawAll wts frab frabT worldTexMap eye ang
+      withFramebuffer window $ drawAll wts frab frabT worldTexMap eye ang
 
-      blit renderer targetTexture screenWidth screenHeight
+      blit window
 
       unless quit (loop now (theta + 2 `mod` 360) eye ang newKeySet newFRBuf)
 
