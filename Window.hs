@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Window
 ( KeySet
-, Texture
 , Window
 , blit
 , getInput
