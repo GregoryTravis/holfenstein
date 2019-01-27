@@ -46,6 +46,7 @@ import Math
 import Physics
 import Tex
 import Util
+import Window
 
 -- #if !MIN_VERSION_base(4,8,0)
 -- import Control.Applicative
@@ -58,27 +59,6 @@ ifShowMap io = if showMap then io else return ()
 screenWidth, screenHeight :: Int
 (screenWidth, screenHeight) = (640, 480)
 --(screenWidth, screenHeight) = (320, 240)
-
-data Texture = Texture SDL.Texture (V2 CInt)
-
-createBlank :: SDL.Renderer -> V2 CInt -> SDL.TextureAccess -> IO Texture
-createBlank r sz access = Texture <$> SDL.createTexture r SDL.RGBA8888 access sz <*> pure sz
-
-renderTexture :: SDL.Renderer -> Texture -> Point V2 CInt -> Maybe (SDL.Rectangle CInt) -> Maybe CDouble -> Maybe (Point V2 CInt) -> Maybe (V2 Bool) -> IO ()
-renderTexture r (Texture t size) xy clip theta center flips =
-  let dstSize =
-        maybe size (\(SDL.Rectangle _ size') -> size') clip
-  in SDL.copyEx r
-                t
-                clip
-                (Just (SDL.Rectangle xy dstSize))
-                (fromMaybe 0 theta)
-                center
-                (fromMaybe (pure False) flips)
-
-setAsRenderTarget :: SDL.Renderer -> Maybe Texture -> IO ()
-setAsRenderTarget r Nothing = SDL.rendererRenderTarget r $= Nothing
-setAsRenderTarget r (Just (Texture t _)) = SDL.rendererRenderTarget r $= Just t
 
 withFramebuffer :: Texture -> (Ptr Word32 -> Int -> IO a) -> IO a
 withFramebuffer (Texture t _) f = do
@@ -568,37 +548,11 @@ main = do
 
   let worldTexMap = WorldTexMap texes
 
-  SDL.initialize [SDL.InitVideo]
-
-  SDL.HintRenderScaleQuality $= SDL.ScaleLinear
-  do renderQuality <- SDL.get SDL.HintRenderScaleQuality
-     when (renderQuality /= SDL.ScaleLinear) $
-       putStrLn "Warning: Linear texture filtering not enabled!"
-
-  window <-
-    SDL.createWindow
-      "SDL Tutorial"
-      SDL.defaultWindow {SDL.windowInitialSize = V2 (fromIntegral screenWidth) (fromIntegral screenHeight)}
-  SDL.showWindow window
-
-  renderer <-
-    SDL.createRenderer
-      window
-      (-1)
-      SDL.RendererConfig
-        { SDL.rendererType = SDL.AcceleratedVSyncRenderer
-        , SDL.rendererTargetTexture = False
-        }
-
-  SDL.rendererDrawColor renderer $= V4 maxBound maxBound maxBound maxBound
-
-  targetTexture <- createBlank renderer (V2 (fromIntegral screenWidth) (fromIntegral screenHeight)) SDL.TextureAccessStreaming
+  (window, renderer, targetTexture) <- windowInit screenWidth screenHeight
 
   startNow <- getPOSIXTime 
 
   let
-    screenCenter = P (V2 (fromIntegral (screenWidth `div` 2)) (fromIntegral (screenHeight `div` 2)))
-
     loop lastNow theta prevEye prevAng keySet frBuf = do
       (now, fps, newFRBuf) <- fps lastNow frBuf
       --putStrLn $ "FPS " ++ (show fps)
@@ -607,15 +561,10 @@ main = do
 
       withFramebuffer targetTexture $ drawAll wts frab frabT worldTexMap eye ang
 
-      setAsRenderTarget renderer Nothing
-
-      renderTexture renderer targetTexture 0 Nothing (Just 0) (Just screenCenter) Nothing
-
-      SDL.present renderer
+      blit renderer targetTexture screenWidth screenHeight
 
       unless quit (loop now (theta + 2 `mod` 360) eye ang newKeySet newFRBuf)
 
   loop startNow (0 :: Int) (V2 40.5 7.5) (pi / 8) S.empty frBufferEmpty
 
-  SDL.destroyWindow window
-  SDL.quit
+  windowTerm window
