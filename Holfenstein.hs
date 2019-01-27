@@ -22,7 +22,6 @@ import Data.Word (Word32)
 import qualified Debug.Trace as TR
 import System.Directory
 import Foreign.C.Types
-import Foreign.Marshal.Alloc (mallocBytes)
 import Foreign.Marshal.Utils (fillBytes)
 import Foreign.Ptr
 import Foreign.Storable (peek, poke, peekElemOff, pokeElemOff)
@@ -42,6 +41,7 @@ import System.IO
 
 import Gfx
 import Img
+import Tex
 import Util
 
 -- #if !MIN_VERSION_base(4,8,0)
@@ -667,24 +667,6 @@ physics frab oEye@(V2 ox oy) nEye@(V2 nx ny) = V2 cnx cny
                   then uMargin
                   else ny
     
-
-data Tex = Tex Int Int (Ptr Word32)
-instance Show Tex where
-  show (Tex w h _) = show (w, h)
-
-{-
-readTex :: String -> IO Tex
-readTex fileName = do
-  img <- readImg fileName
-  imgToTex img
--}
-
-imgToTex :: Img -> IO Tex
-imgToTex im@(Img colors w h) = do
-  mem <- mallocBytes (w * h * 4) :: IO (Ptr Word32)
-  mapM_ (copy mem w) [(x, y) | x <- [0..w-1], y <- [0..h-1]]
-  return $ Tex w h mem
-  where copy mem w (x, y) = do pokeElemOff mem (x + (y * w)) (packColor (pixAt im x y))
 
 readTexes :: IO (M.Map Char Tex)
 readTexes = do
