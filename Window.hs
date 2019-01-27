@@ -1,8 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Window
-( Texture
+( KeySet
+, Texture
 , Window
 , blit
+, getInput
 , windowInit
 , windowTerm
 , withFramebuffer
@@ -10,6 +12,7 @@ module Window
 
 import Control.Monad hiding (mapM_)
 import Data.Maybe
+import qualified Data.Set as S
 import Data.Word (Word32)
 import Foreign.C.Types
 import Foreign.Ptr
@@ -23,6 +26,9 @@ import qualified SDL
 data Window = Window SDL.Window SDL.Renderer Texture (Int, Int)
 
 data Texture = Texture SDL.Texture (V2 CInt)
+
+data KeyEvent = KeyEvent Int InputMotion deriving (Eq, Ord, Show)
+type KeySet = S.Set Int
 
 createBlank :: SDL.Renderer -> V2 CInt -> SDL.TextureAccess -> IO Texture
 createBlank r sz access = Texture <$> SDL.createTexture r SDL.RGBA8888 access sz <*> pure sz
@@ -72,6 +78,35 @@ windowInit screenWidth screenHeight = do
   targetTexture <- createBlank renderer (V2 (fromIntegral screenWidth) (fromIntegral screenHeight)) SDL.TextureAccessStreaming
 
   return $ Window window renderer targetTexture (screenWidth, screenHeight)
+
+getKeyEvents :: [EventPayload] -> [KeyEvent]
+getKeyEvents events = map toKeyEvent $ filter isKeyboardEvent events
+  where keyboardEvents = filter isKeyboardEvent events
+        isKeyboardEvent (KeyboardEvent _) = True
+        isKeyboardEvent _ = False
+        getPressRelease :: EventPayload -> InputMotion
+        getPressRelease (KeyboardEvent ke) = keyboardEventKeyMotion ke
+        getCode (KeyboardEvent ke) = fromIntegral $ unwrapKeycode (keysymKeycode (keyboardEventKeysym ke))
+        toKeyEvent event = KeyEvent (getCode event) (getPressRelease event)
+
+updateKeySet :: KeySet -> [KeyEvent] -> KeySet
+updateKeySet keySet (KeyEvent scanCode Pressed : kes) = updateKeySet (S.insert scanCode keySet) kes
+updateKeySet keySet (KeyEvent scanCode Released : kes) = updateKeySet (S.delete scanCode keySet) kes
+updateKeySet keySet [] = keySet
+
+getCursorPos :: [EventPayload] -> Maybe (Int, Int)
+getCursorPos events = case (filter isMouseMotionEvent events) of [] -> Nothing
+                                                                 es -> case (last es) of (MouseMotionEvent d) -> case (mouseMotionEventPos d) of (P (V2 x y)) -> Just (fromIntegral x, fromIntegral y)
+  where isMouseMotionEvent (MouseMotionEvent _) = True
+        isMouseMotionEvent _ = False
+
+getInput prevKeySet = do
+  events <- map SDL.eventPayload <$> SDL.pollEvents
+  let keyEvents = getKeyEvents events
+  let newKeySet = updateKeySet prevKeySet keyEvents
+  let quitEvent = SDL.QuitEvent `elem` events
+  let cursorPos = getCursorPos events
+  return (cursorPos, newKeySet, quitEvent)
 
 withFramebuffer :: Window -> (Ptr Word32 -> Int -> IO a) -> IO a
 withFramebuffer (Window _ _ (Texture t _) _) f = do

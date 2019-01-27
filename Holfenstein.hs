@@ -27,12 +27,6 @@ import Foreign.Ptr
 import Foreign.Storable (peek, poke, peekElemOff, pokeElemOff)
 import Linear
 import Numeric (showHex)
-import SDL (($=), unwrapKeycode, keysymKeycode, unwrapKeycode)
-import SDL.Event
-import qualified SDL.Raw.Types as RT
-import SDL.Vect
-import qualified SDL.Video.Renderer as VR
-import qualified SDL
 import System.CPUTime (getCPUTime)
 import System.Exit
 import System.IO
@@ -406,31 +400,6 @@ drawAll wts frab frabT worldTexMap eye ang ptr pitch = do
   ifShowMap $ drawMap wts frab ptr pitch
   ifShowMap $ drawEye wts eye ang ptr pitch
 
-data KeyEvent = KeyEvent Int InputMotion deriving (Eq, Ord, Show)
-type KeySet = S.Set Int
-
-getKeyEvents :: [EventPayload] -> [KeyEvent]
-getKeyEvents events = map toKeyEvent $ filter isKeyboardEvent events
-  where keyboardEvents = filter isKeyboardEvent events
-        isKeyboardEvent (KeyboardEvent _) = True
-        isKeyboardEvent _ = False
-        getPressRelease :: EventPayload -> InputMotion
-        getPressRelease (KeyboardEvent ke) = keyboardEventKeyMotion ke
-        getCode (KeyboardEvent ke) = fromIntegral $ unwrapKeycode (keysymKeycode (keyboardEventKeysym ke))
-        toKeyEvent event = KeyEvent (getCode event) (getPressRelease event)
-
-updateKeySet :: KeySet -> [KeyEvent] -> KeySet
-updateKeySet keySet (KeyEvent scanCode Pressed : kes) = updateKeySet (S.insert scanCode keySet) kes
-updateKeySet keySet (KeyEvent scanCode Released : kes) = updateKeySet (S.delete scanCode keySet) kes
-updateKeySet keySet [] = keySet
-
-getCursorPos :: [EventPayload] -> Maybe (Int, Int)
-getCursorPos events = case (filter isMouseMotionEvent events) of [] -> Nothing
-                                                                 es -> case (last es) of (MouseMotionEvent d) -> case (mouseMotionEventPos d) of (P (V2 x y)) -> Just (fromIntegral x, fromIntegral y)
-  where isMouseMotionEvent (MouseMotionEvent _) = True
-        isMouseMotionEvent _ = False
-screenToWorld wts (x, y) = (toWorldCoordinate wts x, toWorldCoordinate wts y)
-
 fov = pi / 3
 -- view plane starts one unit from origin perp to the x axis
 viewPlaneWidth = 2.0 * tan (fov / 2)
@@ -514,18 +483,17 @@ readFrab filename = do
 
 transposeFrab (Frab world (w, h)) = Frab (transposeAA world) (h, w)
 
+screenToWorld wts (x, y) = (toWorldCoordinate wts x, toWorldCoordinate wts y)
+
 processEvents :: Frab -> Wts -> KeySet -> (V2 Double) -> Double -> IO (KeySet, V2 Double, Double, Bool)
 processEvents frab wts prevKeySet prevEye prevAng = do
-  events <- map SDL.eventPayload <$> SDL.pollEvents
-  let keyEvents = getKeyEvents events
-  let newKeySet = updateKeySet prevKeySet keyEvents
-  let quit = SDL.QuitEvent `elem` events || S.member 27 newKeySet
-
+  (cursorPos, newKeySet, quitEvent) <- getInput prevKeySet
   let (kEye, ang) = updateEyeAng (prevEye, prevAng) newKeySet
   let pEye = physics frab prevEye kEye
-  let eye = case getCursorPos events of Just (x, y) -> case screenToWorld wts (x, y) of (x, y) -> (if outsideWorldF frab (V2 x y) then pEye else (V2 x y))
-                                        Nothing -> pEye
-  return (newKeySet, eye, ang, quit)
+  let eye = case cursorPos of Just (x, y) -> case screenToWorld wts (x, y) of (x, y) -> (if outsideWorldF frab (V2 x y) then pEye else (V2 x y))
+                              Nothing -> pEye
+  let esc = S.member 27 newKeySet
+  return (newKeySet, eye, ang, quitEvent || esc)
 
 main :: IO ()
 main = do
