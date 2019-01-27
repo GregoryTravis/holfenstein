@@ -38,6 +38,7 @@ import qualified SDL.Raw.Types as RT
 import SDL.Vect
 import qualified SDL.Video.Renderer as VR --(lockTexture, unlockTexture, surfacePixels, surfaceFormat, surfaceDimensions)
 import qualified SDL
+import System.CPUTime (getCPUTime)
 import System.Exit
 import System.IO
 --import Unsafe.Coerce
@@ -132,14 +133,16 @@ clipTexCoords' w h x y = (clip x 0 w, clip y 0 h)
                    | x >= b = b-1
                    | otherwise = x
 
+{-
 hImageSampler :: Tex -> Int -> Int-> PackedColor
 --hImageSampler _ x y | TR.trace (show ("hIm", x, y)) False = undefined
 hImageSampler (Tex image _ _ _) x y = packPixel $ pixelAt image cx cy
   where (cx, cy) = clipTexCoords image x y
+-}
 
 fasterHImageSampler :: Tex -> Int -> Int-> IO PackedColor
 --hImageSampler _ x y | TR.trace (show ("hIm", x, y)) False = undefined
-fasterHImageSampler (Tex _ w h ptr) x y = peekElemOff ptr (cx + (w * cy))
+fasterHImageSampler (Tex w h ptr) x y = peekElemOff ptr (cx + (w * cy))
   where (cx, cy) = clipTexCoords' w h x y
 
 calcTexCoord :: V2 Int -> V2 Double -> Int -> Double
@@ -150,7 +153,7 @@ calcTexCoord (V2 sy0 sy1) (V2 ty0 ty1) sy =
         syf = fromIntegral sy
 
 slowTextureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-slowTextureVStrip horPos v@(VStrip x y0 y1 tex@(Tex _ tw th _)) ptr pitch =
+slowTextureVStrip horPos v@(VStrip x y0 y1 tex@(Tex tw th _)) ptr pitch =
   mapM_ foo [cy0..cy1]
   where foo y = do col <- fasterHImageSampler tex tx (ty y)
   --where foo y = do let col = hImageSampler tex tx (ty y)
@@ -171,7 +174,7 @@ slowTextureVStrip horPos v@(VStrip x y0 y1 tex@(Tex _ tw th _)) ptr pitch =
 
 -- Incrementally calculate ty
 lessSlowTextureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-lessSlowTextureVStrip horPos v@(VStrip x y0 y1 tex@(Tex _ tw th _)) ptr pitch =
+lessSlowTextureVStrip horPos v@(VStrip x y0 y1 tex@(Tex tw th _)) ptr pitch =
   loop cy0 fty0
   --mapM_ foo [cy0..cy1]
   where loop cy fty = do col <- sampler tx (floor fty)
@@ -186,7 +189,7 @@ lessSlowTextureVStrip horPos v@(VStrip x y0 y1 tex@(Tex _ tw th _)) ptr pitch =
 
 -- Inline drawPoint
 textureVStrip :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-textureVStrip horPos v@(VStrip x y0 y1 tex@(Tex _ tw th _)) ptr pitch =
+textureVStrip horPos v@(VStrip x y0 y1 tex@(Tex tw th _)) ptr pitch =
   loop startPtr cy0 fty0
   where loop curPtr cy fty = do col <- sampler tx (floor fty)
                                 poke curPtr col
@@ -202,7 +205,7 @@ textureVStrip horPos v@(VStrip x y0 y1 tex@(Tex _ tw th _)) ptr pitch =
 
 -- Native
 fastestTextureVStripH :: Double -> VStrip -> Ptr Word32 -> Int -> IO ()
-fastestTextureVStripH horPos v@(VStrip x y0 y1 (Tex _ w h texPtr)) ptr pitch =
+fastestTextureVStripH horPos v@(VStrip x y0 y1 (Tex w h texPtr)) ptr pitch =
   fastestTextureVStrip startPtr texPtr (fromIntegral w) (fromIntegral h) (fromIntegral dPtr) tx (fromIntegral cy0) (fromIntegral cy1) fty0 dfty
   where startPtr = plusPtr ptr ((cy0 * pitch) + (x*4))
         dPtr = pitch `div` 4
@@ -708,22 +711,36 @@ physics frab oEye@(V2 ox oy) nEye@(V2 nx ny) = V2 cnx cny
                   else ny
     
 
-data Tex = Tex (Image PixelRGBA8) Int Int (Ptr Word32)
+data Tex = Tex Int Int (Ptr Word32)
 instance Show Tex where
-  show (Tex _ w h _) = show (w, h)
+  show (Tex w h _) = show (w, h)
 
-packPixel (PixelRGBA8 r g b a) = packColor (Color (fromIntegral r) (fromIntegral g) (fromIntegral b))
+unpackPixel (PixelRGBA8 r g b a) = Color (fromIntegral r) (fromIntegral g) (fromIntegral b)
+
+type Vec2D a = V.Vector (V.Vector a)
+data Img = Img (Vec2D Color) Int Int
+
+pixAt (Img colors w h) x y = (colors ! y) ! x
 
 readTex :: String -> IO Tex
 readTex fileName = do
+  img <- readImg fileName
+  imgToTex img
+
+readImg :: String -> IO Img
+readImg fileName = do
   res <- readImage fileName
   let image = case res of (Right image) -> convertRGBA8 $ image
   let Image { imageWidth = w, imageHeight = h } = image
-  --msp ("im", w, h)
+  let colors = V.fromList (map V.fromList [[unpackPixel $ pixelAt image x y | x <- [0..w-1]] | y <- [0..h-1]])
+  return $ Img colors w h
+
+imgToTex :: Img -> IO Tex
+imgToTex im@(Img colors w h) = do
   mem <- mallocBytes (w * h * 4) :: IO (Ptr Word32)
-  mapM_ (copy image mem w) [(x, y) | x <- [0..w-1], y <- [0..h-1]]
-  return $ Tex image w h mem
-  where copy image mem w (x, y) = do pokeElemOff mem (x + (y * w)) (packPixel (pixelAt image x y))
+  mapM_ (copy mem w) [(x, y) | x <- [0..w-1], y <- [0..h-1]]
+  return $ Tex w h mem
+  where copy mem w (x, y) = do pokeElemOff mem (x + (y * w)) (packColor (pixAt im x y))
 
 {-
 darkenTex :: Tex -> IO Tex
@@ -737,10 +754,15 @@ darkenTex (Tex image w h mem) =
 
 readTexes :: IO (M.Map Char Tex)
 readTexes = do
+  start <- getCPUTime
   files <- listDirectory "images"
   let relativePaths = map ("images/" ++) files
   texes <- mapM readTex relativePaths
-  return $ M.fromList [(head file, tex) | (file, tex) <- zip files texes]
+  let ret = M.fromList [(head file, tex) | (file, tex) <- zip files texes]
+  end <- getCPUTime
+  let dur = (fromIntegral (end - start)) / 1000000000000.0
+  msp ("rt", start, end, dur)
+  return ret
 
 readMap :: String -> IO [[Char]]
 readMap filename = do
