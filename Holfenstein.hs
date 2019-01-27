@@ -12,7 +12,7 @@ import Control.Monad hiding (mapM_)
 import Control.Monad.ST
 import Data.Array.ST
 import Data.Bits
-import Data.Char (ord)
+import Data.Char (ord, toUpper)
 import Data.Foldable hiding (elem)
 import Data.List (nub)
 import qualified Data.Vector as V
@@ -360,8 +360,8 @@ data Frab = Frab World (Int, Int) deriving Show
 data WorldTexMap = WorldTexMap (M.Map Char Tex)
 --getTexForHit w h (WorldTexMap t) | TR.trace (show ("gT", h, t, floorV $ wallPtToV2 h, (case (floorV $ wallPtToV2 h) of (V2 x y) -> getMaterial world x y))) False = undefined
 -- Uncomment to get black for interpolated strips
---getTexForHit frab (Hit hit True) (WorldTexMap t) = fromJust $ M.lookup 'k' t
-getTexForHit frab (Hit hit _) (WorldTexMap t) = fromJust $ M.lookup texChar t
+darkenInterpolated = False
+getTexForHit frab (Hit hit interpolated) (WorldTexMap t) = fromJust $ M.lookup (darkenMaybe texChar) t
   where texChar = case solidOf (sidesOf hit) of (x, y) -> getMaterial frab x y
         -- Non-exhaustive cases: we assert here that exactly one side of the hit is solid
         solidOf ((x0, y0), (x1, y1))
@@ -371,6 +371,7 @@ getTexForHit frab (Hit hit _) (WorldTexMap t) = fromJust $ M.lookup texChar t
                 solid1 = isSolid frab x1 y1
         sidesOf (Hor fx y) = let x = floor fx in ((x, y-1), (x, y))
         sidesOf (Ver x fy) = let y = floor fy in ((x-1, y), (x, y))
+        darkenMaybe c = if darkenInterpolated && interpolated then (toUpper c) else c
         --materialOf world (Hor fx y)
           -- | isSolid world x (y-1) && (! (isSolid world x y)) = getMaterial world x (y-1)
           -- | (! (isSolid world x (y-1))) && isSolid world x y = getMaterial world x y
@@ -722,10 +723,12 @@ data Img = Img (Vec2D Color) Int Int
 
 pixAt (Img colors w h) x y = (colors ! y) ! x
 
+{-
 readTex :: String -> IO Tex
 readTex fileName = do
   img <- readImg fileName
   imgToTex img
+-}
 
 readImg :: String -> IO Img
 readImg fileName = do
@@ -742,26 +745,29 @@ imgToTex im@(Img colors w h) = do
   return $ Tex w h mem
   where copy mem w (x, y) = do pokeElemOff mem (x + (y * w)) (packColor (pixAt im x y))
 
-{-
-darkenTex :: Tex -> IO Tex
-darkenTex (Tex image w h mem) =
-  newMem <- mallocBytes (w * h * 4) :: IO (Ptr Word32)
-  mapM_ (darken image mem w) [(x, y) | x <- [0..w-1], y <- [0..h-1]]
-  return $ Tex image w h mem
-  where darken image mem w x y = do
-          let c = unpackColor (peekElemOff mem (x + (y * w)))
--}
+mapImg :: (Color -> Color) -> Img -> Img
+mapImg f (Img colors w h) = Img ncolors w h
+  where colorsL = map V.toList (V.toList colors)
+        ncolorsL = map (map f) colorsL
+        ncolors = V.fromList (map V.fromList ncolorsL)
+
+darkenImg :: Img -> Img
+darkenImg = (mapImg darken)
+  where darken (Color r g b) = Color (r `div` 2) (g `div` 2) (b `div` 2) 
 
 readTexes :: IO (M.Map Char Tex)
 readTexes = do
   start <- getCPUTime
   files <- listDirectory "images"
   let relativePaths = map ("images/" ++) files
-  texes <- mapM readTex relativePaths
-  let ret = M.fromList [(head file, tex) | (file, tex) <- zip files texes]
+  imgs <- mapM readImg relativePaths
+  let darkImgs = map darkenImg imgs
+  texes <- mapM imgToTex imgs
+  darkTexes <- mapM imgToTex darkImgs
+  let ret = M.fromList [(head file, tex) | (file, tex) <- zip files texes] `M.union`
+            M.fromList [(toUpper $ head file, tex) | (file, tex) <- zip files darkTexes]
   end <- getCPUTime
   let dur = (fromIntegral (end - start)) / 1000000000000.0
-  msp ("rt", start, end, dur)
   return ret
 
 readMap :: String -> IO [[Char]]
