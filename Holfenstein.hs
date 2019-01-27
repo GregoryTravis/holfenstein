@@ -44,7 +44,6 @@ import Map
 import Math
 import Physics
 import Tex
-import Types
 import Util
 
 -- #if !MIN_VERSION_base(4,8,0)

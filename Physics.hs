@@ -6,7 +6,6 @@ import Linear
 
 import Map
 import Math
-import Types
 
 physics :: Frab -> V2 Double -> V2 Double -> V2 Double
 physics frab oEye@(V2 ox oy) nEye@(V2 nx ny) = V2 cnx cny
