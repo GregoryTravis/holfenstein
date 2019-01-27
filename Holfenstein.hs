@@ -257,12 +257,6 @@ toRad degrees = 2 * pi * ((fromIntegral degrees) / 360.0)
 whup :: V2 Double -> V2 Int
 whup (V2 x y) = V2 (floor x) (floor y)
 
-circlePointsF :: Double -> Double -> Double -> [V2 Double]
---circlePoints r a s | TR.trace (show ("cp", r, a, s)) False = undefined
-circlePointsF radius startAng step = map cp [startAng, startAng + step .. pi * 2]
-  where cp ang = V2 ((cos ang) * radius) ((sin ang) * radius)
-circlePoints r sA s = map whup $ circlePointsF r sA s
-
 clearCanvas2 :: Ptr Word32 -> Int -> IO ()
 clearCanvas2 wordPtr pitch = do
   fillBytes wordPtr (fromIntegral 84) half
@@ -364,7 +358,7 @@ castRaysI frab frabT eye dirs = runST $
      mapM_ (gorb) (zip [0..] dirs)
      getElems arr
 
--- Boolb is interpolated?
+-- Bool: is interpolated?
 data Hit = Hit WallPt Bool
 
 castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
