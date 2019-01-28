@@ -115,11 +115,8 @@ drawPoint v c ptr pitch = do
 
 toRad degrees = 2 * pi * ((fromIntegral degrees) / 360.0)
 
-whup :: V2 Double -> V2 Int
-whup (V2 x y) = V2 (floor x) (floor y)
-
-clearCanvas2 :: Ptr Word32 -> Int -> IO ()
-clearCanvas2 wordPtr pitch = do
+floorAndCeiling :: Ptr Word32 -> Int -> IO ()
+floorAndCeiling wordPtr pitch = do
   fillBytes wordPtr (fromIntegral 84) half
   fillBytes (plusPtr wordPtr half) (fromIntegral 40) half
   return ()
@@ -288,7 +285,7 @@ drawEye wts eye ang ptr pitch = do
   where eyeLine = Line eye (eye + angToDir ang)
 
 drawAll wts frab frabT worldTexMap eye ang ptr pitch = do
-  clearCanvas2 ptr pitch
+  floorAndCeiling ptr pitch
   renderWorld frab frabT worldTexMap eye ang ptr pitch
   ifShowMap $ drawMap wts frab ptr pitch
   ifShowMap $ drawEye wts eye ang ptr pitch
