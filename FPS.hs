@@ -15,7 +15,6 @@ frBufferAdd (FRBuffer es tot num) e | num == frBufferLen = FRBuffer [e] e 1
 frBufferUpdate :: FRBuffer -> Double -> (Double, FRBuffer)
 frBufferUpdate frBuf e = (frBufferAvg frBuf, frBufferAdd frBuf e)
 
-
 fps lastNow frBuf = do
   now <- getPOSIXTime 
   let instantFPS :: Double
