@@ -1,12 +1,14 @@
 module Map where
 
+import qualified Data.Vector as V
+import Data.Vector ((!))
 import Linear
 
 -- Grid is made of unit cubes
 -- Cubes are identified by their least corner coords
 -- Walls are identified by their least coord along their axis
 -- Remember these are drawn upside down
-type Grid = [[Char]]
+type Grid = V.Vector (V.Vector Char)
 
 data World = World Grid (Int, Int) deriving Show
 
@@ -25,7 +27,7 @@ getMaterial :: World -> Int -> Int -> Char
 --getMaterial w x y | TR.trace (show ("gM", x, y)) False = undefined
 getMaterial f@(World grid _) x y
   | outsideGrid f x y = ' '
-  | otherwise = ((grid !! x) !! y)
+  | otherwise = ((grid ! x) ! y)
 
 data WallPt = Ver Int Double | Hor Double Int deriving (Eq, Show)
 wallPtToV2 (Ver x y) = V2 (fromIntegral x) y

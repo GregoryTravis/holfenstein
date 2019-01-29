@@ -124,6 +124,7 @@ floorAndCeiling wordPtr pitch = do
 
 transposeAA ([]:_) = []
 transposeAA xs = (map head xs) : transposeAA (map tail xs)
+transposeVV x = lltovv (transposeAA (vvtoll x))
 
 -- Just one texture in the grid for now
 data GridTexMap = GridTexMap (M.Map Char Tex)
@@ -141,7 +142,13 @@ getTexForHit world (Hit hit interpolated) (GridTexMap t) = fromJust $ M.lookup (
         sidesOf (Ver x fy) = let y = floor fy in ((x-1, y), (x, y))
         darkenMaybe c = if darkenInterpolated && interpolated then (toUpper c) else c
 
-allSameLength xs = length (nub (map length xs)) == 1
+lltovv ll = V.fromList (map V.fromList ll)
+vvtoll vv = map V.toList (V.toList vv)
+
+allSameLength :: V.Vector (V.Vector a) -> Bool
+--allSameLength xs = V.length (nub (V.map V.length xs)) == 1
+allSameLength xs = length (nub (map length (vvtoll xs))) == 1
+
 transposeV2 (V2 x y) = V2 y x
 
 doCastTr = False
@@ -372,12 +379,13 @@ readMap filename = do
 
 readWorld :: String -> IO World
 readWorld filename = do
-  map <- readMap filename
-  let gridSize = assert (allSameLength map)
-                   ((length map), (length (map !! 0)))
-  return $ World map gridSize
+  gridL <- readMap filename
+  let grid = V.fromList (map V.fromList gridL)
+  let gridSize = assert (allSameLength grid)
+                   ((V.length grid), (V.length (grid ! 0)))
+  return $ World grid gridSize
 
-transposeWorld (World grid (w, h)) = World (transposeAA grid) (h, w)
+transposeWorld (World grid (w, h)) = World (transposeVV grid) (h, w)
 
 screenToGrid wts (x, y) = (toGridCoordinate wts x, toGridCoordinate wts y)
 
@@ -410,7 +418,7 @@ main = do
   let
     loop lastNow theta prevEye prevAng keySet frBuf = do
       (now, fps, newFRBuf) <- fps lastNow frBuf
-      --putStrLn $ "FPS " ++ (show fps)
+      putStrLn $ "FPS " ++ (show fps)
 
       (newKeySet, eye, ang, quit) <- processEvents world wts keySet prevEye prevAng
 
