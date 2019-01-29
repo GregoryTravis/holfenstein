@@ -206,8 +206,6 @@ data VStrip = VStrip Int Int Int Tex --deriving Show
 clipToScreen (VStrip x y0 y1 tex) | y0 <= y1 =
   VStrip x (max 0 y0) (min (screenHeight - 1) y1) tex
 
-fal xs = [head xs, last xs]
-
 castRaysI frab frabT eye dirs = runST $
   do arr <- newArray (0, (length dirs)-1) Nothing :: ST s (STArray s Int (Maybe WallPt))
      let gorb (i, dir) = do
@@ -219,9 +217,17 @@ castRaysI frab frabT eye dirs = runST $
 -- Bool: is interpolated?
 data Hit = Hit WallPt Bool
 
+-- Binary partition ray casting.
+-- If two rays hit the same wall segment, then all rays between them also hit
+-- that wall segment.  Those rays do not need to be cast; we already know
+-- what segment they are on and only have to do a quick ray/segment intersection
+-- to find the intersection point.
 castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
   do arr <- newArray (0, last) Nothing :: ST s (STArray s Int (Maybe Hit))
-     let  hab s e
+     -- Cast rays between s and e (inclusive), either by interpolating between
+     -- them (if they're on the same segment) or by casting the ray in the
+     -- middle, m, and then recursively casting the ranges s..m and m..e.
+     let  castRange s e
             | s == e = return ()
             | s == e-1 = return ()
             | otherwise = do isSameHit <- sameHit s e
@@ -229,8 +235,8 @@ castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
                                then do interpolate s e
                                else let m = s + ((e - s) `div` 2)
                                      in do cast m
-                                           hab s m
-                                           hab m e
+                                           castRange s m
+                                           castRange m e
           cast i = writeArray arr i $ case castRay frab frabT eye (signorm (dirs ! i)) of Just wpt -> Just (Hit wpt False)
                                                                                           Nothing -> Nothing
           sameHit a b = do (Just (Hit aHit _)) <- readArray arr a
@@ -238,16 +244,16 @@ castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
                            return $ sameWall aHit bHit
           interpolate s e = do
             (Just (Hit hit _)) <- readArray arr s
-            case hit of (Hor fx y) -> mapM_ (hguvv y) [(s+1)..(e-1)]
-                        (Ver x fy) -> mapM_ (vguvv x) [(s+1)..(e-1)]
-            where hguvv wy i = writeArray arr i (Just iHit)
+            case hit of (Hor fx y) -> mapM_ (quickHorIntersect y) [(s+1)..(e-1)]
+                        (Ver x fy) -> mapM_ (quickVerIntersect x) [(s+1)..(e-1)]
+            where quickHorIntersect wy i = writeArray arr i (Just iHit)
                     where (V2 dirx diry) = dirs ! i
                           dy = (fromIntegral wy) - ey
                           dx = dy * (dirx / diry)
                           hx = ex + dx
                           hy = wy
                           iHit = Hit (Hor hx hy) True
-                  vguvv wx i = writeArray arr i (Just iHit)
+                  quickVerIntersect wx i = writeArray arr i (Just iHit)
                     where (V2 dirx diry) = dirs ! i
                           dx = (fromIntegral wx) - ex
                           dy = dx * (diry / dirx)
@@ -257,7 +263,7 @@ castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
                   correct i = castRay frab frabT eye (signorm (dirs ! i))
      cast 0
      cast last
-     hab 0 last
+     castRange 0 last
      getElems arr
   where dirs = V.fromList dirsL
         last = (length dirs) - 1
