@@ -129,14 +129,14 @@ transposeAA xs = (map head xs) : transposeAA (map tail xs)
 data GridTexMap = GridTexMap (M.Map Char Tex)
 --getTexForHit w h (GridTexMap t) | TR.trace (show ("gT", h, t, floorV $ wallPtToV2 h, (case (floorV $ wallPtToV2 h) of (V2 x y) -> getMaterial grid x y))) False = undefined
 darkenInterpolated = False
-getTexForHit frab (Hit hit interpolated) (GridTexMap t) = fromJust $ M.lookup (darkenMaybe texChar) t
-  where texChar = case solidOf (sidesOf hit) of (x, y) -> getMaterial frab x y
+getTexForHit world (Hit hit interpolated) (GridTexMap t) = fromJust $ M.lookup (darkenMaybe texChar) t
+  where texChar = case solidOf (sidesOf hit) of (x, y) -> getMaterial world x y
         -- Non-exhaustive cases: we assert here that exactly one side of the hit is solid
         solidOf ((x0, y0), (x1, y1))
           | solid0 && (not solid1) = (x0, y0)
           | (not solid0) && solid1 = (x1, y1)
-          where solid0 = isSolid frab x0 y0
-                solid1 = isSolid frab x1 y1
+          where solid0 = isSolid world x0 y0
+                solid1 = isSolid world x1 y1
         sidesOf (Hor fx y) = let x = floor fx in ((x, y-1), (x, y))
         sidesOf (Ver x fy) = let y = floor fy in ((x-1, y), (x, y))
         darkenMaybe c = if darkenInterpolated && interpolated then (toUpper c) else c
@@ -148,11 +148,11 @@ doCastTr = False
 castTr s b | doCastTr = TR.trace s b
            | otherwise = b
 
-castRay :: Frab -> Frab -> V2 Double -> V2 Double -> Maybe WallPt
+castRay :: World -> World -> V2 Double -> V2 Double -> Maybe WallPt
 --castRay w a b | castTr ("castRay " ++ (show a) ++ " " ++ (show b)) False = undefined
-castRay frab frabT eye@(V2 ex ey) dir@(V2 dx dy)
-  | (abs dy) <= (abs dx) = stepRay frab eye (eye + firstStep) unitStep slope
-  | otherwise = transposeMaybeHit (castRay frabT frab (transposeV2 eye) (transposeV2 dir))
+castRay world worldT eye@(V2 ex ey) dir@(V2 dx dy)
+  | (abs dy) <= (abs dx) = stepRay world eye (eye + firstStep) unitStep slope
+  | otherwise = transposeMaybeHit (castRay worldT world (transposeV2 eye) (transposeV2 dir))
   where slope = dy / dx
         firstStep = V2 firstVerDx firstVerDy
         firstVerDx | dx > 0 = (fromIntegral (ceiling ex)) - ex
@@ -162,17 +162,17 @@ castRay frab frabT eye@(V2 ex ey) dir@(V2 dx dy)
 
 -- (x1, y1) is always on a vertical grid line; (x0, y0) is the previous one or
 -- the initial eye point.
-stepRay :: Frab -> V2 Double -> V2 Double -> V2 Double -> Double -> Maybe WallPt
+stepRay :: World -> V2 Double -> V2 Double -> V2 Double -> Double -> Maybe WallPt
 --stepRay w p0 p1 u s | castTr (show ("stepRay", p0, p1, u, 2)) False = undefined
-stepRay frab p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
-  | (floor y0) /= (floor y1) && isHorWall frab (floor (min x0 x1)) (floor (max y0 y1)) && (abs slope) > 0 = Just $ Hor (x0 + (((fromIntegral (floor (max y0 y1))) - y0) / slope)) (floor (max y0 y1))
-  | isVerWall frab (floor x1) (floor y1) = Just $ Ver (floor x1) y1
-  | outsideGridF frab p0 = Nothing
-  | otherwise = stepRay frab p1 (p1 + unitStep) unitStep slope
+stepRay world p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
+  | (floor y0) /= (floor y1) && isHorWall world (floor (min x0 x1)) (floor (max y0 y1)) && (abs slope) > 0 = Just $ Hor (x0 + (((fromIntegral (floor (max y0 y1))) - y0) / slope)) (floor (max y0 y1))
+  | isVerWall world (floor x1) (floor y1) = Just $ Ver (floor x1) y1
+  | outsideGridF world p0 = Nothing
+  | otherwise = stepRay world p1 (p1 + unitStep) unitStep slope
 
 data Wts = Wts Double Int deriving Show
-gridToScreen :: Frab -> Wts
-gridToScreen (Frab grid (w, h)) = Wts scale translate
+gridToScreen :: World -> Wts
+gridToScreen (World grid (w, h)) = Wts scale translate
   where hMargin = screenWidth `div` 10
         vMargin = screenHeight `div` 10
         hScale :: Double
@@ -195,10 +195,10 @@ forDisplayF wts lines = map floorL (forDisplay wts lines)
 horToLine x y = Line (V2 x y) (V2 (x + 1) y)
 verToLine x y = Line (V2 x y) (V2 x (y + 1))
 
-allWalls frab@(Frab _ (w, h)) = [horToLine x y | x <- [0..w], y <- [0..h], isHorWall frab x y] ++ [verToLine x y | x <- [0..w], y <- [0..h], isVerWall frab x y]
+allWalls world@(World _ (w, h)) = [horToLine x y | x <- [0..w], y <- [0..h], isHorWall world x y] ++ [verToLine x y | x <- [0..w], y <- [0..h], isVerWall world x y]
 
-drawMap wts frab = drawLines map
-  where map = forDisplay wts (allWalls frab) -- translateLines (V2 100 100) (scaleLines 50 allWalls)
+drawMap wts world = drawLines map
+  where map = forDisplay wts (allWalls world) -- translateLines (V2 100 100) (scaleLines 50 allWalls)
 
 data VStrip = VStrip Int Int Int Tex --deriving Show
 
@@ -206,10 +206,10 @@ data VStrip = VStrip Int Int Int Tex --deriving Show
 clipToScreen (VStrip x y0 y1 tex) | y0 <= y1 =
   VStrip x (max 0 y0) (min (screenHeight - 1) y1) tex
 
-castRaysI frab frabT eye dirs = runST $
+castRaysI world worldT eye dirs = runST $
   do arr <- newArray (0, (length dirs)-1) Nothing :: ST s (STArray s Int (Maybe WallPt))
      let gorb (i, dir) = do
-            writeArray arr i $ castRay frab frabT eye (signorm dir)
+            writeArray arr i $ castRay world worldT eye (signorm dir)
             return ()
      mapM_ (gorb) (zip [0..] dirs)
      getElems arr
@@ -222,7 +222,7 @@ data Hit = Hit WallPt Bool
 -- that wall segment.  Those rays do not need to be cast; we already know
 -- what segment they are on and only have to do a quick ray/segment intersection
 -- to find the intersection point.
-castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
+castRaysB world worldT eye@(V2 ex ey) dirsL = runST $
   do arr <- newArray (0, last) Nothing :: ST s (STArray s Int (Maybe Hit))
      -- Cast rays between s and e (inclusive), either by interpolating between
      -- them (if they're on the same segment) or by casting the ray in the
@@ -237,8 +237,8 @@ castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
                                      in do cast m
                                            castRange s m
                                            castRange m e
-          cast i = writeArray arr i $ case castRay frab frabT eye (signorm (dirs ! i)) of Just wpt -> Just (Hit wpt False)
-                                                                                          Nothing -> Nothing
+          cast i = writeArray arr i $ case castRay world worldT eye (signorm (dirs ! i)) of Just wpt -> Just (Hit wpt False)
+                                                                                            Nothing -> Nothing
           sameHit a b = do (Just (Hit aHit _)) <- readArray arr a
                            (Just (Hit bHit _)) <- readArray arr b
                            return $ sameWall aHit bHit
@@ -260,7 +260,7 @@ castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
                           hx = wx
                           hy = ey + dy
                           iHit = Hit (Ver hx hy) True
-                  correct i = castRay frab frabT eye (signorm (dirs ! i))
+                  correct i = castRay world worldT eye (signorm (dirs ! i))
      cast 0
      cast last
      castRange 0 last
@@ -268,16 +268,16 @@ castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
   where dirs = V.fromList dirsL
         last = (length dirs) - 1
 
-renderGrid frab frabT gridTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
+renderGrid world worldT gridTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where renderWall x eye hit dir ptr pitch = do
           case hit of
             Just h@(Hit hit interpolated) -> do
-              let tex = getTexForHit frab h gridTexMap
+              let tex = getTexForHit world h gridTexMap
               let hh = wallHalfScreenHeight eye eyeDir (wallPtToV2 hit)
               let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) tex
               fastestTextureVStripH (horPos hit) unclippedVStrip ptr pitch
             Nothing -> return ()
-        hits = castRaysB frab frabT eye dirs
+        hits = castRaysB world worldT eye dirs
         castAndShowL eye dirs ptr pitch = do
           mapM_ (\(x, dir, hit) -> renderWall x eye hit dir ptr pitch) (zip3 [0..] dirs hits)
         wid = (screenWidth `div` 1)
@@ -290,10 +290,10 @@ drawEye wts eye ang ptr pitch = do
   drawLines (forDisplayF wts [eyeLine]) ptr pitch
   where eyeLine = Line eye (eye + angToDir ang)
 
-drawAll wts frab frabT gridTexMap eye ang ptr pitch = do
+drawAll wts world worldT gridTexMap eye ang ptr pitch = do
   floorAndCeiling ptr pitch
-  renderGrid frab frabT gridTexMap eye ang ptr pitch
-  ifShowMap $ drawMap wts frab ptr pitch
+  renderGrid world worldT gridTexMap eye ang ptr pitch
+  ifShowMap $ drawMap wts world ptr pitch
   ifShowMap $ drawEye wts eye ang ptr pitch
 
 fov = pi / 3
@@ -370,23 +370,23 @@ readMap filename = do
   mapFile <- readFile filename
   return $ lines mapFile
 
-readFrab :: String -> IO Frab
-readFrab filename = do
+readWorld :: String -> IO World
+readWorld filename = do
   map <- readMap filename
   let gridSize = assert (allSameLength map)
                    ((length map), (length (map !! 0)))
-  return $ Frab map gridSize
+  return $ World map gridSize
 
-transposeFrab (Frab grid (w, h)) = Frab (transposeAA grid) (h, w)
+transposeWorld (World grid (w, h)) = World (transposeAA grid) (h, w)
 
 screenToGrid wts (x, y) = (toGridCoordinate wts x, toGridCoordinate wts y)
 
-processEvents :: Frab -> Wts -> KeySet -> (V2 Double) -> Double -> IO (KeySet, V2 Double, Double, Bool)
-processEvents frab wts prevKeySet prevEye prevAng = do
+processEvents :: World -> Wts -> KeySet -> (V2 Double) -> Double -> IO (KeySet, V2 Double, Double, Bool)
+processEvents world wts prevKeySet prevEye prevAng = do
   (cursorPos, newKeySet, quitEvent) <- getInput prevKeySet
   let (kEye, ang) = updateEyeAng (prevEye, prevAng) newKeySet
-  let pEye = physics frab prevEye kEye
-  let eye = case cursorPos of Just (x, y) -> case screenToGrid wts (x, y) of (x, y) -> (if outsideGridF frab (V2 x y) then pEye else (V2 x y))
+  let pEye = physics world prevEye kEye
+  let eye = case cursorPos of Just (x, y) -> case screenToGrid wts (x, y) of (x, y) -> (if outsideGridF world (V2 x y) then pEye else (V2 x y))
                               Nothing -> pEye
   let esc = S.member 27 newKeySet
   return (newKeySet, eye, ang, quitEvent || esc)
@@ -396,10 +396,10 @@ main = do
   hSetBuffering stdout NoBuffering
 
   --exitWith ExitSuccess
-  frabT <- readFrab "map.txt"
-  let frab = transposeFrab frabT
+  worldT <- readWorld "map.txt"
+  let world = transposeWorld worldT
   texes <- readTexes
-  let wts = gridToScreen frab
+  let wts = gridToScreen world
 
   let gridTexMap = GridTexMap texes
 
@@ -412,9 +412,9 @@ main = do
       (now, fps, newFRBuf) <- fps lastNow frBuf
       --putStrLn $ "FPS " ++ (show fps)
 
-      (newKeySet, eye, ang, quit) <- processEvents frab wts keySet prevEye prevAng
+      (newKeySet, eye, ang, quit) <- processEvents world wts keySet prevEye prevAng
 
-      withFramebuffer window $ drawAll wts frab frabT gridTexMap eye ang
+      withFramebuffer window $ drawAll wts world worldT gridTexMap eye ang
 
       blit window
 

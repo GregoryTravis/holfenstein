@@ -8,22 +8,22 @@ import Linear
 -- Remember these are drawn upside down
 type Grid = [[Char]]
 
-data Frab = Frab Grid (Int, Int) deriving Show
+data World = World Grid (Int, Int) deriving Show
 
-outsideGrid :: Frab -> Int -> Int -> Bool
-outsideGrid (Frab _ (w, h)) x y = x < 0 || y < 0 || x >= w || y >= h
-outsideGridF :: Frab -> V2 Double -> Bool
-outsideGridF (Frab _ (wx, wy)) (V2 x y) = x < 0 || x >= (fromIntegral wx) + 1 || y < -1 || y > (fromIntegral wy) + 1
+outsideGrid :: World -> Int -> Int -> Bool
+outsideGrid (World _ (w, h)) x y = x < 0 || y < 0 || x >= w || y >= h
+outsideGridF :: World -> V2 Double -> Bool
+outsideGridF (World _ (wx, wy)) (V2 x y) = x < 0 || x >= (fromIntegral wx) + 1 || y < -1 || y > (fromIntegral wy) + 1
 
 --isHorWall w x y | TR.trace (show ("isHorWall", x, y)) False = undefined
-isHorWall frab x y = (isSolid frab x (y - 1)) /= (isSolid frab x y)
-isVerWall frab x y = (isSolid frab (x - 1) y) /= (isSolid frab x y)
-isSolid :: Frab -> Int -> Int -> Bool
+isHorWall world x y = (isSolid world x (y - 1)) /= (isSolid world x y)
+isVerWall world x y = (isSolid world (x - 1) y) /= (isSolid world x y)
+isSolid :: World -> Int -> Int -> Bool
 --isSolid x y | TR.trace (show ("iS", x, y, (length grid), gridSize, (outsideGrid x y))) False = undefined
-isSolid frab x y = (getMaterial frab x y) /= ' '
-getMaterial :: Frab -> Int -> Int -> Char
+isSolid world x y = (getMaterial world x y) /= ' '
+getMaterial :: World -> Int -> Int -> Char
 --getMaterial w x y | TR.trace (show ("gM", x, y)) False = undefined
-getMaterial f@(Frab grid _) x y
+getMaterial f@(World grid _) x y
   | outsideGrid f x y = ' '
   | otherwise = ((grid !! x) !! y)
 
