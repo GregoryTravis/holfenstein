@@ -125,11 +125,11 @@ floorAndCeiling wordPtr pitch = do
 transposeAA ([]:_) = []
 transposeAA xs = (map head xs) : transposeAA (map tail xs)
 
--- Just one texture in the world for now
-data WorldTexMap = WorldTexMap (M.Map Char Tex)
---getTexForHit w h (WorldTexMap t) | TR.trace (show ("gT", h, t, floorV $ wallPtToV2 h, (case (floorV $ wallPtToV2 h) of (V2 x y) -> getMaterial world x y))) False = undefined
+-- Just one texture in the grid for now
+data GridTexMap = GridTexMap (M.Map Char Tex)
+--getTexForHit w h (GridTexMap t) | TR.trace (show ("gT", h, t, floorV $ wallPtToV2 h, (case (floorV $ wallPtToV2 h) of (V2 x y) -> getMaterial grid x y))) False = undefined
 darkenInterpolated = False
-getTexForHit frab (Hit hit interpolated) (WorldTexMap t) = fromJust $ M.lookup (darkenMaybe texChar) t
+getTexForHit frab (Hit hit interpolated) (GridTexMap t) = fromJust $ M.lookup (darkenMaybe texChar) t
   where texChar = case solidOf (sidesOf hit) of (x, y) -> getMaterial frab x y
         -- Non-exhaustive cases: we assert here that exactly one side of the hit is solid
         solidOf ((x0, y0), (x1, y1))
@@ -167,12 +167,12 @@ stepRay :: Frab -> V2 Double -> V2 Double -> V2 Double -> Double -> Maybe WallPt
 stepRay frab p0@(V2 x0 y0) p1@(V2 x1 y1) unitStep slope
   | (floor y0) /= (floor y1) && isHorWall frab (floor (min x0 x1)) (floor (max y0 y1)) && (abs slope) > 0 = Just $ Hor (x0 + (((fromIntegral (floor (max y0 y1))) - y0) / slope)) (floor (max y0 y1))
   | isVerWall frab (floor x1) (floor y1) = Just $ Ver (floor x1) y1
-  | outsideWorldF frab p0 = Nothing
+  | outsideGridF frab p0 = Nothing
   | otherwise = stepRay frab p1 (p1 + unitStep) unitStep slope
 
 data Wts = Wts Double Int deriving Show
-worldToScreen :: Frab -> Wts
-worldToScreen (Frab world (w, h)) = Wts scale translate
+gridToScreen :: Frab -> Wts
+gridToScreen (Frab grid (w, h)) = Wts scale translate
   where hMargin = screenWidth `div` 10
         vMargin = screenHeight `div` 10
         hScale :: Double
@@ -182,8 +182,8 @@ worldToScreen (Frab world (w, h)) = Wts scale translate
         scale = min hScale vScale
         translate = min hMargin vMargin
 
-toWorldCoordinate :: Wts -> Int -> Double
-toWorldCoordinate (Wts s t) ix = ((fromIntegral ix) - (fromIntegral t)) / s
+toGridCoordinate :: Wts -> Int -> Double
+toGridCoordinate (Wts s t) ix = ((fromIntegral ix) - (fromIntegral t)) / s
 
 forDisplay :: Num a => Wts -> [Line a] -> [Line a]
 forDisplay (Wts wtsScale wtsTranslate) lines = 
@@ -268,11 +268,11 @@ castRaysB frab frabT eye@(V2 ex ey) dirsL = runST $
   where dirs = V.fromList dirsL
         last = (length dirs) - 1
 
-renderWorld frab frabT worldTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
+renderGrid frab frabT gridTexMap eye ang ptr pitch = castAndShowL eye dirs ptr pitch
   where renderWall x eye hit dir ptr pitch = do
           case hit of
             Just h@(Hit hit interpolated) -> do
-              let tex = getTexForHit frab h worldTexMap
+              let tex = getTexForHit frab h gridTexMap
               let hh = wallHalfScreenHeight eye eyeDir (wallPtToV2 hit)
               let unclippedVStrip = VStrip x ((screenHeight `div` 2) - hh) ((screenHeight `div` 2) + hh) tex
               fastestTextureVStripH (horPos hit) unclippedVStrip ptr pitch
@@ -290,9 +290,9 @@ drawEye wts eye ang ptr pitch = do
   drawLines (forDisplayF wts [eyeLine]) ptr pitch
   where eyeLine = Line eye (eye + angToDir ang)
 
-drawAll wts frab frabT worldTexMap eye ang ptr pitch = do
+drawAll wts frab frabT gridTexMap eye ang ptr pitch = do
   floorAndCeiling ptr pitch
-  renderWorld frab frabT worldTexMap eye ang ptr pitch
+  renderGrid frab frabT gridTexMap eye ang ptr pitch
   ifShowMap $ drawMap wts frab ptr pitch
   ifShowMap $ drawEye wts eye ang ptr pitch
 
@@ -373,20 +373,20 @@ readMap filename = do
 readFrab :: String -> IO Frab
 readFrab filename = do
   map <- readMap filename
-  let worldSize = assert (allSameLength map)
+  let gridSize = assert (allSameLength map)
                    ((length map), (length (map !! 0)))
-  return $ Frab map worldSize
+  return $ Frab map gridSize
 
-transposeFrab (Frab world (w, h)) = Frab (transposeAA world) (h, w)
+transposeFrab (Frab grid (w, h)) = Frab (transposeAA grid) (h, w)
 
-screenToWorld wts (x, y) = (toWorldCoordinate wts x, toWorldCoordinate wts y)
+screenToGrid wts (x, y) = (toGridCoordinate wts x, toGridCoordinate wts y)
 
 processEvents :: Frab -> Wts -> KeySet -> (V2 Double) -> Double -> IO (KeySet, V2 Double, Double, Bool)
 processEvents frab wts prevKeySet prevEye prevAng = do
   (cursorPos, newKeySet, quitEvent) <- getInput prevKeySet
   let (kEye, ang) = updateEyeAng (prevEye, prevAng) newKeySet
   let pEye = physics frab prevEye kEye
-  let eye = case cursorPos of Just (x, y) -> case screenToWorld wts (x, y) of (x, y) -> (if outsideWorldF frab (V2 x y) then pEye else (V2 x y))
+  let eye = case cursorPos of Just (x, y) -> case screenToGrid wts (x, y) of (x, y) -> (if outsideGridF frab (V2 x y) then pEye else (V2 x y))
                               Nothing -> pEye
   let esc = S.member 27 newKeySet
   return (newKeySet, eye, ang, quitEvent || esc)
@@ -399,9 +399,9 @@ main = do
   frabT <- readFrab "map.txt"
   let frab = transposeFrab frabT
   texes <- readTexes
-  let wts = worldToScreen frab
+  let wts = gridToScreen frab
 
-  let worldTexMap = WorldTexMap texes
+  let gridTexMap = GridTexMap texes
 
   window <- windowInit screenWidth screenHeight
 
@@ -414,7 +414,7 @@ main = do
 
       (newKeySet, eye, ang, quit) <- processEvents frab wts keySet prevEye prevAng
 
-      withFramebuffer window $ drawAll wts frab frabT worldTexMap eye ang
+      withFramebuffer window $ drawAll wts frab frabT gridTexMap eye ang
 
       blit window
 

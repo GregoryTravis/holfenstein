@@ -2,30 +2,30 @@ module Map where
 
 import Linear
 
--- World is made of unit cubes
+-- Grid is made of unit cubes
 -- Cubes are identified by their least corner coords
 -- Walls are identified by their least coord along their axis
 -- Remember these are drawn upside down
-type World = [[Char]]
+type Grid = [[Char]]
 
-data Frab = Frab World (Int, Int) deriving Show
+data Frab = Frab Grid (Int, Int) deriving Show
 
-outsideWorld :: Frab -> Int -> Int -> Bool
-outsideWorld (Frab _ (w, h)) x y = x < 0 || y < 0 || x >= w || y >= h
-outsideWorldF :: Frab -> V2 Double -> Bool
-outsideWorldF (Frab _ (wx, wy)) (V2 x y) = x < 0 || x >= (fromIntegral wx) + 1 || y < -1 || y > (fromIntegral wy) + 1
+outsideGrid :: Frab -> Int -> Int -> Bool
+outsideGrid (Frab _ (w, h)) x y = x < 0 || y < 0 || x >= w || y >= h
+outsideGridF :: Frab -> V2 Double -> Bool
+outsideGridF (Frab _ (wx, wy)) (V2 x y) = x < 0 || x >= (fromIntegral wx) + 1 || y < -1 || y > (fromIntegral wy) + 1
 
 --isHorWall w x y | TR.trace (show ("isHorWall", x, y)) False = undefined
 isHorWall frab x y = (isSolid frab x (y - 1)) /= (isSolid frab x y)
 isVerWall frab x y = (isSolid frab (x - 1) y) /= (isSolid frab x y)
 isSolid :: Frab -> Int -> Int -> Bool
---isSolid x y | TR.trace (show ("iS", x, y, (length world), worldSize, (outsideWorld x y))) False = undefined
+--isSolid x y | TR.trace (show ("iS", x, y, (length grid), gridSize, (outsideGrid x y))) False = undefined
 isSolid frab x y = (getMaterial frab x y) /= ' '
 getMaterial :: Frab -> Int -> Int -> Char
 --getMaterial w x y | TR.trace (show ("gM", x, y)) False = undefined
-getMaterial f@(Frab world _) x y
-  | outsideWorld f x y = ' '
-  | otherwise = ((world !! x) !! y)
+getMaterial f@(Frab grid _) x y
+  | outsideGrid f x y = ' '
+  | otherwise = ((grid !! x) !! y)
 
 data WallPt = Ver Int Double | Hor Double Int deriving (Eq, Show)
 wallPtToV2 (Ver x y) = V2 (fromIntegral x) y
