@@ -1,3 +1,6 @@
+(ghc $OPTFLAGS -rtsopts -prof -Werror -ferror-spans -fprof-auto -fprof-cafs -outputdir ifs -o Hoom Hoom.hs && ./Hoom -cx +RTS -p) 2>&1 | tee out
+exit
+
 rm -f Holfenstein.prof
 
 #OPTFLAGS=-O3
