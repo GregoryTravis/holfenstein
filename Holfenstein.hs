@@ -77,41 +77,10 @@ fastestTextureVStripH horPos v@(VStrip x y0 y1 (Tex w h texPtr)) ptr pitch =
         -- clipped screen coords
         (cy0, cy1) = case clipToScreen v of (VStrip _ cy0 cy1 tex) -> (cy0, cy1)
 
-drawLine :: Line Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
-drawLine (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
-  where delta | isVert = V2 ((signum dx) * (abs (dx / dy))) (signum dy)
-              | otherwise = V2 (signum dx) ((signum dy) * (abs (dy / dx)))
-        count | isVert = abs idy
-              | otherwise = abs idx
-        fa :: V2 Double
-        fa = V2 (fromIntegral x0) (fromIntegral y0)
-        isVert = (abs dy) > (abs dx)
-        idx = x1 - x0
-        idy = y1 - y0
-        dx :: Double
-        dx = fromIntegral idx
-        dy :: Double
-        dy = fromIntegral idy
-        step :: V2 Double -> V2 Double -> Int -> IO ()
-        step a@(V2 x y) delta count
-          | count == 0 = return ()
-          | otherwise = do
-              drawPoint (V2 (floor x) (floor y)) color ptr pitch
-              step (a + delta) delta (count - 1)
-
-drawLines :: [Line Int] -> Ptr Word32 -> Int -> IO ()
-drawLines lines ptr pitch =
-  let dl line = drawLine line white ptr pitch
+drawLines :: Window -> [Line Int] -> Ptr Word32 -> Int -> IO ()
+drawLines w lines ptr pitch =
+  let dl line = drawLine w line white ptr pitch
    in mapM_ dl lines
-
-toOffset (V2 x y) pitch = y * (pitch `div` 4) + x
-
-inScreenBounds (V2 x y) = x >= 0 && y >= 0 && x < screenWidth && y < screenHeight
-
-drawPoint :: V2 Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
-drawPoint v c ptr pitch = do
-  assertM (v, ptr, pitch) (inScreenBounds v)
-    pokeElemOff ptr (toOffset v pitch) c
 
 toRad degrees = 2 * pi * ((fromIntegral degrees) / 360.0)
 
@@ -204,7 +173,7 @@ verToLine x y = Line (V2 x y) (V2 x (y + 1))
 
 allWalls world@(World _ (w, h)) = [horToLine x y | x <- [0..w], y <- [0..h], isHorWall world x y] ++ [verToLine x y | x <- [0..w], y <- [0..h], isVerWall world x y]
 
-drawMap wts world = drawLines map
+drawMap w wts world = drawLines w map
   where map = forDisplay wts (allWalls world) -- translateLines (V2 100 100) (scaleLines 50 allWalls)
 
 data VStrip = VStrip Int Int Int Tex --deriving Show
@@ -292,16 +261,16 @@ renderGrid world worldT gridTexMap eye ang ptr pitch = castAndShowL eye dirs ptr
         dirs = map (\vpp -> signorm (vpp - eye)) vpps
         eyeDir = angToDir ang
 
-drawEye wts eye ang ptr pitch = do
-  drawLines (forDisplayF wts (boxAround eye)) ptr pitch
-  drawLines (forDisplayF wts [eyeLine]) ptr pitch
+drawEye w wts eye ang ptr pitch = do
+  drawLines w (forDisplayF wts (boxAround eye)) ptr pitch
+  drawLines w (forDisplayF wts [eyeLine]) ptr pitch
   where eyeLine = Line eye (eye + angToDir ang)
 
-drawAll wts world worldT gridTexMap eye ang ptr pitch = do
+drawAll w wts world worldT gridTexMap eye ang ptr pitch = do
   floorAndCeiling ptr pitch
   renderGrid world worldT gridTexMap eye ang ptr pitch
-  ifShowMap $ drawMap wts world ptr pitch
-  ifShowMap $ drawEye wts eye ang ptr pitch
+  ifShowMap $ drawMap w wts world ptr pitch
+  ifShowMap $ drawEye w wts eye ang ptr pitch
 
 fov = pi / 3
 -- view plane starts one unit from origin perp to the x axis
@@ -422,7 +391,7 @@ main = do
 
       (newKeySet, eye, ang, quit) <- processEvents world wts keySet prevEye prevAng
 
-      withFramebuffer window $ drawAll wts world worldT gridTexMap eye ang
+      withFramebuffer window $ drawAll window wts world worldT gridTexMap eye ang
 
       blit window
 

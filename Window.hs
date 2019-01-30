@@ -3,6 +3,7 @@ module Window
 ( KeySet
 , Window
 , blit
+, getDimensions
 , getInput
 , windowInit
 , windowTerm
@@ -28,6 +29,8 @@ data Texture = Texture SDL.Texture (V2 CInt)
 
 data KeyEvent = KeyEvent Int InputMotion deriving (Eq, Ord, Show)
 type KeySet = S.Set Int
+
+getDimensions (Window _ _ _ dim) = dim
 
 createBlank :: SDL.Renderer -> V2 CInt -> SDL.TextureAccess -> IO Texture
 createBlank r sz access = Texture <$> SDL.createTexture r SDL.RGBA8888 access sz <*> pure sz
