@@ -22,6 +22,13 @@ main = do
   -- Necessary to make window act normal?
   -- (cursorPos, newKeySet, quitEvent) <- getInput S.empty
 
+  let hp0 = HP (V2 1.0 0.0) True
+  let hp1 = HP (V2 0.0 1.0) True
+  let pt = intersectHPs hp0 hp1
+  msp pt
+  msp $ toNormalPoint pt
+  msp $ toNormalPoint $ intersectHPs (HP (V2 1.0 1.0) True) (HP (V2 (-1.0) 1.0) True)
+
   --drawDiag window (Diag [(V2 (V2 3.0 3.0) (V2 5.0 4.0))])
   let diag = Diag [a, b, c, d]
              where a = V2 p0 p1
@@ -35,8 +42,6 @@ main = do
   drawDiag window diag
 
   blit window
-
-  msp $ HP (V2 1.0 1.0)
 
   let loop :: KeySet -> IO ()
       loop keySet = do
