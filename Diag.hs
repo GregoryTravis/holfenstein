@@ -3,8 +3,14 @@ module Diag
 , drawDiag
 ) where
 
+import Data.Word (Word32)
+import Foreign.Ptr
 import Linear
 
+import Gfx
+import Img
+import Line
+import Math
 import Util
 import Window
 
@@ -12,10 +18,17 @@ data Diag = Diag [V2 (V2 Double)] deriving Show
 
 drawDiag :: Window -> Diag -> IO ()
 drawDiag window diag = do
-  msp diag
-  msp $ bbox diag
-  msp $ boxToBoxTransform (V2 (V2 2.0 2.0) (V2 3.0 3.0)) (V2 (V2 1.0 1.0) (V2 3.0 3.0))
+  --msp diag
+  --msp $ bbox diag
+  --msp $ boxToBoxTransform (V2 (V2 2.0 2.0) (V2 3.0 3.0)) (V2 (V2 1.0 1.0) (V2 3.0 3.0))
+  withFramebuffer window foo
   return ()
+  where foo :: Ptr Word32 -> Int -> IO ()
+        foo ptr pitch = mapM_ (\line -> drawLine window line white ptr pitch) (esp (toLines (transformDiag winT diag)))
+        winT = boxToBoxTransform (bbox diag) (V2 (V2 0.0 0.0) winV)
+        winV = case (getDimensions window) of (w, h) -> V2 (fromIntegral w) (fromIntegral h)
+        toLines (Diag lines) = map toLine lines
+        toLine (V2 a b) = Line (floorV a) (floorV b)
 
 --pointsOf :: Diag -> [(V2 Double)]
 --pointsOf (Diag lines) = concat lines

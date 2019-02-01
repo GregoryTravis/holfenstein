@@ -5,6 +5,7 @@ module Window
 , blit
 , getDimensions
 , getInput
+, getInputWait
 , windowInit
 , windowTerm
 , withFramebuffer
@@ -104,6 +105,12 @@ getCursorPos events = case (filter isMouseMotionEvent events) of [] -> Nothing
 
 getInput prevKeySet = do
   events <- map SDL.eventPayload <$> SDL.pollEvents
+  processEvents prevKeySet events
+getInputWait prevKeySet = do
+  event <- SDL.eventPayload <$> SDL.waitEvent
+  processEvents prevKeySet [event]
+
+processEvents prevKeySet events = do
   let keyEvents = getKeyEvents events
   let newKeySet = updateKeySet prevKeySet keyEvents
   let quitEvent = SDL.QuitEvent `elem` events
