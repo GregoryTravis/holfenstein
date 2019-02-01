@@ -2,11 +2,13 @@ module Main (main) where
 
 import Control.Concurrent
 import Control.Monad (unless)
+import Data.Char (ord)
 import qualified Data.Set as S
 import Linear
 import System.Posix.Unistd
 import System.IO
 
+import Bsp
 import Diag
 import Util
 import Window
@@ -34,11 +36,13 @@ main = do
 
   blit window
 
+  msp $ HP (V2 1.0 1.0)
+
   let loop :: KeySet -> IO ()
       loop keySet = do
         (cursorPos, newKeySet, quitEvent) <- getInputWait keySet
         --msp (cursorPos, newKeySet)
-        let quit = quitEvent || S.member 27 newKeySet
+        let quit = quitEvent || S.member 27 newKeySet || S.member (ord 'q') newKeySet
         unless quit $ loop newKeySet
         return ()
    in loop S.empty
