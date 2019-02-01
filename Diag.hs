@@ -1,5 +1,6 @@
 module Diag
 ( Diag(..)
+, box
 , drawDiag
 ) where
 
@@ -34,6 +35,7 @@ drawDiag window diag = do
 --pointsOf (Diag lines) = concat lines
 
 v2p (V2 x y) = (x, y)
+p2v (x, y) = V2 x y
 
 -- scale, translate
 data Trans = Trans Double (V2 Double) deriving Show
@@ -62,3 +64,15 @@ bbox (Diag lines) = V2 (V2 minX minY) (V2 maxX maxY)
         maxY = maximum ys
         (xs, ys) = unzip tups
         tups = concat (map (\(V2 a b) -> [v2p a, v2p b]) lines)
+
+box v = boxR v 4
+boxR p radius = cycleLines [a, b, c, d]
+  where a = p + dx + dy
+        b = p + dx - dy
+        c = p - dx - dy
+        d = p - dx + dy
+        dx = V2 (fromIntegral radius) 0.0
+        dy = V2 0.0 (fromIntegral radius)
+
+cycleLines pts = map p2v $ zip pts (cycle1 pts)
+  where cycle1 pts = take (length pts) (drop 1 (cycle pts))
