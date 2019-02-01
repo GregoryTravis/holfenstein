@@ -20,7 +20,17 @@ main = do
   -- Necessary to make window act normal?
   -- (cursorPos, newKeySet, quitEvent) <- getInput S.empty
 
-  drawDiag window (Diag [(V2 (V2 3.0 3.0) (V2 5.0 4.0))])
+  --drawDiag window (Diag [(V2 (V2 3.0 3.0) (V2 5.0 4.0))])
+  let diag = Diag [a, b, c, d]
+             where a = V2 p0 p1
+                   b = V2 p1 p2
+                   c = V2 p2 p3
+                   d = V2 p3 p0
+                   p0 = V2 1.0 0.0
+                   p1 = V2 0.0 1.0
+                   p2 = V2 1.0 2.0
+                   p3 = V2 2.0 1.0
+  drawDiag window diag
 
   blit window
 

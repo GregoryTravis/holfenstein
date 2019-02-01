@@ -5,7 +5,9 @@ module Gfx
 , fastestTextureVStrip
 ) where
 
+import Control.Monad (when, unless)
 import Data.Word (Word32)
+import qualified Debug.Trace as TR
 import Foreign.C
 import Foreign.Ptr
 import Foreign.Storable (pokeElemOff)
@@ -26,6 +28,8 @@ drawPoint :: Window -> V2 Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
 drawPoint w v c ptr pitch = do
   assertM (v, ptr, pitch) (inScreenBounds w v)
     pokeElemOff ptr (toOffset v pitch) c
+drawPoint_ w v c ptr pitch = do
+  when (inScreenBounds w v) $ pokeElemOff ptr (toOffset v pitch) c
 
 drawLine :: Window -> Line Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
 drawLine w (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
@@ -44,6 +48,7 @@ drawLine w (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
         dy = fromIntegral idy
         step :: V2 Double -> V2 Double -> Int -> IO ()
         step a@(V2 x y) delta count
+          -- | TR.trace (show ("step", a)) False = undefined
           | count == 0 = return ()
           | otherwise = do
               drawPoint w (V2 (floor x) (floor y)) color ptr pitch

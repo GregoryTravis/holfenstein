@@ -26,7 +26,7 @@ drawDiag window diag = do
   where foo :: Ptr Word32 -> Int -> IO ()
         foo ptr pitch = mapM_ (\line -> drawLine window line white ptr pitch) (esp (toLines (transformDiag winT diag)))
         winT = boxToBoxTransform (bbox diag) (V2 (V2 0.0 0.0) winV)
-        winV = case (getDimensions window) of (w, h) -> V2 (fromIntegral w) (fromIntegral h)
+        winV = case (getDimensions window) of (w, h) -> V2 (fromIntegral (w - 1)) (fromIntegral (h - 1))
         toLines (Diag lines) = map toLine lines
         toLine (V2 a b) = Line (floorV a) (floorV b)
 
