@@ -17,7 +17,8 @@ main = do
   hSetBuffering stdout NoBuffering
   window <- windowInit screenWidth screenHeight
 
-  (cursorPos, newKeySet, quitEvent) <- getInput S.empty
+  -- Necessary to make window act normal?
+  -- (cursorPos, newKeySet, quitEvent) <- getInput S.empty
 
   drawDiag window (Diag [(V2 (V2 3.0 3.0) (V2 5.0 4.0))])
 
@@ -26,7 +27,7 @@ main = do
   let loop :: KeySet -> IO ()
       loop keySet = do
         (cursorPos, newKeySet, quitEvent) <- getInputWait keySet
-        msp (cursorPos, newKeySet)
+        --msp (cursorPos, newKeySet)
         let quit = quitEvent || S.member 27 newKeySet
         unless quit $ loop newKeySet
         return ()
