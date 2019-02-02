@@ -17,29 +17,29 @@ import Math
 import Util
 import Window
 
-class Diagrammable a where
+class Drawable a where
   toLines :: a -> [V2 (V2 Double)]
   transform :: Trans -> a -> a
 
 data Dline = Dline (V2 (V2 Double)) deriving Show
 
-instance Diagrammable Dline where
+instance Drawable Dline where
   toLines (Dline line) = [line]
   transform t (Dline line) = Dline $ transformLine t line
 
 data Dpoint = Dpoint (V2 Double) deriving Show
 
-instance Diagrammable Dpoint where
+instance Drawable Dpoint where
   toLines (Dpoint v) = box v
   transform t (Dpoint v) = Dpoint $ transformV t v
 
 data Diag a = Diag [a] deriving Show
 
-instance Diagrammable a => Diagrammable (Diag a) where
+instance Drawable a => Drawable (Diag a) where
   toLines (Diag diagrammables) = concat $ map toLines diagrammables
   transform t (Diag diagrammables) = Diag $ map (transform t) diagrammables
 
-drawDiag :: Diagrammable a => Window -> a -> IO ()
+drawDiag :: Drawable a => Window -> a -> IO ()
 drawDiag window diag = do
   --msp diag
   --msp $ bbox diag
@@ -64,7 +64,7 @@ data Trans = Trans Double (V2 Double) deriving Show
 
 composeTrans (Trans s0 t0) (Trans s1 t1) = Trans (s0 * s1) ((s1 *^ t0) + t1)
 
---transformDiag :: Diagrammable a => Trans -> a -> a
+--transformDiag :: Drawable a => Trans -> a -> a
 --transformDiag t d = Diag (map (transformLine t) lines)
 transformLine :: Trans -> V2 (V2 Double) -> V2 (V2 Double)
 transformLine t (V2 a b) = V2 (transformV t a) (transformV t b)
@@ -79,7 +79,7 @@ boxToBoxTransform (V2 ll0 ur0) (V2 ll1 ur1) =
         xscale = w1 / w0
         yscale = h1 / h0
 
-bbox :: Diagrammable a => a -> V2 (V2 Double)
+bbox :: Drawable a => a -> V2 (V2 Double)
 bbox diag = V2 (V2 minX minY) (V2 maxX maxY)
   where minX = minimum xs
         minY = minimum ys
