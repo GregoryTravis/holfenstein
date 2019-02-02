@@ -40,7 +40,7 @@ main = do
                    p2 = V2 1.0 2.0
                    p3 = V2 2.0 1.0
   --drawDiag window diag
-  drawDiag window $ Diag $ box (toNormalPoint pt)
+  drawDiag window $ Dpoint $ toNormalPoint pt -- Diag $ box (toNormalPoint pt)
 
   blit window
 

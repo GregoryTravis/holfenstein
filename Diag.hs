@@ -1,5 +1,7 @@
 module Diag
 ( Diag(..)
+, Dline(..)
+, Dpoint(..)
 , box
 , drawDiag
 ) where
@@ -15,9 +17,29 @@ import Math
 import Util
 import Window
 
-data Diag = Diag [V2 (V2 Double)] deriving Show
+class Diagrammable a where
+  toLines :: a -> [V2 (V2 Double)]
+  transform :: Trans -> a -> a
 
-drawDiag :: Window -> Diag -> IO ()
+data Dline = Dline (V2 (V2 Double)) deriving Show
+
+instance Diagrammable Dline where
+  toLines (Dline line) = [line]
+  transform t (Dline line) = Dline $ transformLine t line
+
+data Dpoint = Dpoint (V2 Double) deriving Show
+
+instance Diagrammable Dpoint where
+  toLines (Dpoint v) = box v
+  transform t (Dpoint v) = Dpoint $ transformV t v
+
+data Diag a = Diag [a] deriving Show
+
+instance Diagrammable a => Diagrammable (Diag a) where
+  toLines (Diag diagrammables) = concat $ map toLines diagrammables
+  transform t (Diag diagrammables) = Diag $ map (transform t) diagrammables
+
+drawDiag :: Diagrammable a => Window -> a -> IO ()
 drawDiag window diag = do
   --msp diag
   --msp $ bbox diag
@@ -25,11 +47,11 @@ drawDiag window diag = do
   withFramebuffer window foo
   return ()
   where foo :: Ptr Word32 -> Int -> IO ()
-        foo ptr pitch = mapM_ (\line -> drawLine window line white ptr pitch) (esp (toLines (transformDiag winT diag)))
+        foo ptr pitch = mapM_ (\line -> drawLine window line white ptr pitch) (esp (map toLineLine $ toLines (transform winT diag)))
         winT = boxToBoxTransform (bbox diag) (V2 (V2 0.0 0.0) winV)
         winV = case (getDimensions window) of (w, h) -> V2 (fromIntegral (w - 1)) (fromIntegral (h - 1))
-        toLines (Diag lines) = map toLine lines
-        toLine (V2 a b) = Line (floorV a) (floorV b)
+        --toLines (Diag lines) = map toLine lines
+        toLineLine (V2 a b) = Line (floorV a) (floorV b)
 
 --pointsOf :: Diag -> [(V2 Double)]
 --pointsOf (Diag lines) = concat lines
@@ -42,7 +64,8 @@ data Trans = Trans Double (V2 Double) deriving Show
 
 composeTrans (Trans s0 t0) (Trans s1 t1) = Trans (s0 * s1) ((s1 *^ t0) + t1)
 
-transformDiag t (Diag lines) = Diag (map (transformLine t) lines)
+--transformDiag :: Diagrammable a => Trans -> a -> a
+--transformDiag t d = Diag (map (transformLine t) lines)
 transformLine :: Trans -> V2 (V2 Double) -> V2 (V2 Double)
 transformLine t (V2 a b) = V2 (transformV t a) (transformV t b)
 transformV (Trans s t) v = (s *^ v) + t
@@ -56,14 +79,14 @@ boxToBoxTransform (V2 ll0 ur0) (V2 ll1 ur1) =
         xscale = w1 / w0
         yscale = h1 / h0
 
-bbox :: Diag -> V2 (V2 Double)
-bbox (Diag lines) = V2 (V2 minX minY) (V2 maxX maxY)
+bbox :: Diagrammable a => a -> V2 (V2 Double)
+bbox diag = V2 (V2 minX minY) (V2 maxX maxY)
   where minX = minimum xs
         minY = minimum ys
         maxX = maximum xs
         maxY = maximum ys
         (xs, ys) = unzip tups
-        tups = concat (map (\(V2 a b) -> [v2p a, v2p b]) lines)
+        tups = concat (map (\(V2 a b) -> [v2p a, v2p b]) (toLines diag))
 
 box v = boxR v 4
 boxR p radius = cycleLines [a, b, c, d]
