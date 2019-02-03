@@ -3,12 +3,14 @@ module Gfx
 ( drawLine
 , drawPoint
 , fastestTextureVStrip
+, floorAndCeiling
 ) where
 
 import Control.Monad (when, unless)
 import Data.Word (Word32)
 import qualified Debug.Trace as TR
 import Foreign.C
+import Foreign.Marshal.Utils (fillBytes)
 import Foreign.Ptr
 import Foreign.Storable (pokeElemOff)
 import Linear
@@ -53,4 +55,12 @@ drawLine w (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
           | otherwise = do
               drawPoint w (V2 (floor x) (floor y)) color ptr pitch
               step (a + delta) delta (count - 1)
+
+floorAndCeiling :: Window -> Ptr Word32 -> Int -> IO ()
+floorAndCeiling window wordPtr pitch = do
+  fillBytes wordPtr (fromIntegral 84) half
+  fillBytes (plusPtr wordPtr half) (fromIntegral 40) half
+  return ()
+  where half = (pitch * screenHeight) `div` 2
+        (_, screenHeight) = getDimensions window
 

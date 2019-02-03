@@ -62,7 +62,9 @@ drawDiag window diag = do
   withFramebuffer window foo
   return ()
   where foo :: Ptr Word32 -> Int -> IO ()
-        foo ptr pitch = mapM_ (\line -> drawLine window line white ptr pitch) (map toLineLine $ toLines (transform winT diag))
+        foo ptr pitch = do
+          floorAndCeiling window ptr pitch
+          mapM_ (\line -> drawLine window line white ptr pitch) (map toLineLine $ toLines (transform winT diag))
         winT = boxToBoxTransform (bbox diag) (V2 (V2 0.0 0.0) winV)
         winV = case (getDimensions window) of (w, h) -> V2 (fromIntegral (w - 1)) (fromIntegral (h - 1))
         --toLines (Diag lines) = map toLine lines

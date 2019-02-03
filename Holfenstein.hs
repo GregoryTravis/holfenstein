@@ -22,7 +22,6 @@ import Data.Word (Word32)
 import qualified Debug.Trace as TR
 import System.Directory
 import Foreign.C.Types
-import Foreign.Marshal.Utils (fillBytes)
 import Foreign.Ptr
 import Foreign.Storable (peek, poke, peekElemOff, pokeElemOff)
 import Linear
@@ -83,13 +82,6 @@ drawLines w lines ptr pitch =
    in mapM_ dl lines
 
 toRad degrees = 2 * pi * ((fromIntegral degrees) / 360.0)
-
-floorAndCeiling :: Ptr Word32 -> Int -> IO ()
-floorAndCeiling wordPtr pitch = do
-  fillBytes wordPtr (fromIntegral 84) half
-  fillBytes (plusPtr wordPtr half) (fromIntegral 40) half
-  return ()
-  where half = (pitch * screenHeight) `div` 2
 
 transposeAA ([]:_) = []
 transposeAA xs = (map head xs) : transposeAA (map tail xs)
@@ -267,7 +259,7 @@ drawEye w wts eye ang ptr pitch = do
   where eyeLine = Line eye (eye + angToDir ang)
 
 drawAll w wts world worldT gridTexMap eye ang ptr pitch = do
-  floorAndCeiling ptr pitch
+  floorAndCeiling w ptr pitch
   renderGrid world worldT gridTexMap eye ang ptr pitch
   ifShowMap $ drawMap w wts world ptr pitch
   ifShowMap $ drawEye w wts eye ang ptr pitch
