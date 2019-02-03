@@ -1,6 +1,8 @@
 module Diag
 ( Diag(..)
+, DiagT(..)
 , Dline(..)
+, Ddiamond(..)
 , Dpoint(..)
 , box
 , drawDiag
@@ -32,6 +34,18 @@ data Dpoint = Dpoint (V2 Double) deriving Show
 instance Drawable Dpoint where
   toLines (Dpoint v) = box v
   transform t (Dpoint v) = Dpoint $ transformV t v
+
+data Ddiamond = Ddiamond (V2 Double) deriving Show
+
+instance Drawable Ddiamond where
+  toLines (Ddiamond v) = diamond v
+  transform t (Ddiamond v) = Ddiamond $ transformV t v
+
+data DiagT a b = DiagT (a, b) deriving Show
+
+instance (Drawable x, Drawable y) => Drawable (DiagT x y)  where
+  toLines (DiagT (a, b)) = (toLines a) ++ (toLines b)
+  transform t (DiagT (a, b)) = DiagT (transform t a, transform t b)
 
 data Diag a = Diag [a] deriving Show
 
@@ -88,7 +102,16 @@ bbox diag = V2 (V2 minX minY) (V2 maxX maxY)
         (xs, ys) = unzip tups
         tups = concat (map (\(V2 a b) -> [v2p a, v2p b]) (toLines diag))
 
-box v = boxR v 4
+diamond p = diamondR p 4
+diamondR p radius = cycleLines [a, b, c, d]
+  where a = p + dx
+        b = p + dy
+        c = p - dx
+        d = p - dy
+        dx = V2 (fromIntegral radius) 0.0
+        dy = V2 0.0 (fromIntegral radius)
+
+box p = boxR p 4
 boxR p radius = cycleLines [a, b, c, d]
   where a = p + dx + dy
         b = p + dx - dy

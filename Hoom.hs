@@ -15,6 +15,13 @@ import Window
 
 (screenWidth, screenHeight) = (640, 480)
 
+ptToDrawable pt = Dpoint $ toNormalPoint pt
+
+hpToDrawable (HP v _) = DiagT (Dline $ V2 pos neg, Ddiamond v)
+  where pos = v + nperp
+        neg = v - nperp
+        nperp = 2 *^ (planePosDir v)
+
 main = do
   hSetBuffering stdout NoBuffering
   window <- windowInit screenWidth screenHeight
@@ -30,7 +37,7 @@ main = do
   msp $ toNormalPoint $ intersectHPs (HP (V2 1.0 1.0) True) (HP (V2 (-1.0) 1.0) True)
 
   --drawDiag window (Diag [(V2 (V2 3.0 3.0) (V2 5.0 4.0))])
-  let diag = Diag [a, b, c, d]
+  let dia_ = Diag [a, b, c, d]
              where a = V2 p0 p1
                    b = V2 p1 p2
                    c = V2 p2 p3
@@ -40,7 +47,11 @@ main = do
                    p2 = V2 1.0 2.0
                    p3 = V2 2.0 1.0
   --drawDiag window diag
-  drawDiag window $ Dpoint $ toNormalPoint pt -- Diag $ box (toNormalPoint pt)
+  let apt = ptToDrawable pt -- Dpoint $ toNormalPoint pt -- Diag $ box (toNormalPoint pt)
+  let ahp0 = hpToDrawable hp0
+  let ahp1 = hpToDrawable hp1
+  let diag = DiagT (apt, Diag [ahp0, ahp1])
+  drawDiag window diag
 
   blit window
 

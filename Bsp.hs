@@ -5,6 +5,7 @@ module Bsp
 , Pt(..)
 , toNormalPoint
 , intersectHPs
+, planePosDir
 ) where
 
 -- TODO: make some of these constructors private?
