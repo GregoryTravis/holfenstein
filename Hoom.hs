@@ -62,7 +62,7 @@ main = do
         let startTime' = case startTime of Nothing -> Just now
                                            Just x -> Just x
         let elapsed = realToFrac $ now - (fromJust startTime')
-        msp elapsed
+        --msp elapsed
 
         drawDiag window (frameAt anim elapsed)
         blit window

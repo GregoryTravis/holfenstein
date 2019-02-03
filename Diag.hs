@@ -65,7 +65,10 @@ drawDiag window diag = do
         foo ptr pitch = do
           floorAndCeiling window ptr pitch
           mapM_ (\line -> drawLine window line white ptr pitch) (map toLineLine $ toLines (transform winT diag))
-        winT = boxToBoxTransform (bbox diag) (V2 (V2 0.0 0.0) winV)
+        --bb = bbox diag
+        bb = V2 (V2 (- n) (- n)) (V2 n n)
+        n = 4.0
+        winT = boxToBoxTransform bb (V2 (V2 0.0 0.0) winV)
         winV = case (getDimensions window) of (w, h) -> V2 (fromIntegral (w - 1)) (fromIntegral (h - 1))
         --toLines (Diag lines) = map toLine lines
         toLineLine (V2 a b) = Line (floorV a) (floorV b)

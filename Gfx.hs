@@ -26,12 +26,14 @@ toOffset (V2 x y) pitch = y * (pitch `div` 4) + x
 
 inScreenBounds w (V2 x y) = case getDimensions w of (w, h) -> x >= 0 && y >= 0 && x < w && y < h
 
+doSafeDrawPoint = True
 drawPoint :: Window -> V2 Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
-drawPoint w v c ptr pitch = do
+assertDrawPoint w v c ptr pitch = do
   assertM (v, ptr, pitch) (inScreenBounds w v)
     pokeElemOff ptr (toOffset v pitch) c
-drawPoint_ w v c ptr pitch = do
+safeDrawPoint w v c ptr pitch = do
   when (inScreenBounds w v) $ pokeElemOff ptr (toOffset v pitch) c
+drawPoint = if doSafeDrawPoint then safeDrawPoint else assertDrawPoint
 
 drawLine :: Window -> Line Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
 drawLine w (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
