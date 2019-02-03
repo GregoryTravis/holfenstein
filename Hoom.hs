@@ -26,6 +26,22 @@ hpToDrawable (HP v _) = DiagT (Dline $ V2 pos neg, Ddiamond v)
         neg = v - nperp
         nperp = 2 *^ (planePosDir v)
 
+allCombinations [] = []
+allCombinations (x : xs) = [(x, y) | y <- xs] ++ (allCombinations xs)
+
+square = [HP (V2 1.0 0.0) True, HP (V2 0.0 1.0) True, HP (V2 (- 1.0) 0.0) True, HP (V2 0.0 (- 1.0)) True]
+allIntersections hps = map intr (allCombinations hps)
+  where intr (a, b) = intersectHPs a b
+
+animf t = DiagT(Diag drhps, Diag drpts)
+  where rot = angToRotation (angVel * t)
+        angVel = pi / 4.0
+        rhps = map (rotateHP rot) hps
+        hps = square
+        drhps = map hpToDrawable rhps
+        rpts = allIntersections rhps
+        drpts = map ptToDrawable rpts
+
 main = do
   hSetBuffering stdout NoBuffering
   window <- windowInit screenWidth screenHeight
@@ -44,17 +60,19 @@ main = do
                    p2 = V2 1.0 2.0
                    p3 = V2 2.0 1.0
   --drawDiag window diag
+{-
   let animf t = DiagT (apt, Diag [ahp0, ahp1])
         where apt = ptToDrawable pt
               ahp0 = hpToDrawable rhp0
               ahp1 = hpToDrawable rhp1
               hp0 = HP (V2 (- 1.0) 0.0) True
-              hp1 = HP (V2 0.0 (- 1.0)) True
+              hp1 = HP (V2 ( 1.0) 0.0) True
               rhp0 = rotateHP rot hp0
               rhp1 = rotateHP rot hp1
               pt = intersectHPs rhp0 rhp1
               rot = angToRotation (angVel * t)
               angVel = pi / 4.0
+-}
   let anim = Anim animf
 
   let loop startTime keySet = do
