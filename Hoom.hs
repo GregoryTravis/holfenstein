@@ -66,7 +66,7 @@ main = do
         blit window
         --msp "frame"
 
-        (cursorPos, newKeySet, quitEvent) <- getInputWait keySet
+        (cursorPos, newKeySet, quitEvent) <- getInput keySet
         --msp (cursorPos, newKeySet)
         let quit = quitEvent || S.member 27 newKeySet || S.member (ord 'q') newKeySet
         unless quit $ loop startTime' newKeySet
