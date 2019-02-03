@@ -13,6 +13,7 @@ import System.IO
 import Anim
 import Bsp
 import Diag
+import Math
 import Util
 import Window
 
@@ -32,13 +33,6 @@ main = do
   -- Necessary to make window act normal?
   -- (cursorPos, newKeySet, quitEvent) <- getInput S.empty
 
-  let hp0 = HP (V2 1.0 0.0) True
-  let hp1 = HP (V2 0.0 1.0) True
-  let pt = intersectHPs hp0 hp1
-  msp pt
-  msp $ toNormalPoint pt
-  msp $ toNormalPoint $ intersectHPs (HP (V2 1.0 1.0) True) (HP (V2 (-1.0) 1.0) True)
-
   --drawDiag window (Diag [(V2 (V2 3.0 3.0) (V2 5.0 4.0))])
   let dia_ = Diag [a, b, c, d]
              where a = V2 p0 p1
@@ -50,10 +44,16 @@ main = do
                    p2 = V2 1.0 2.0
                    p3 = V2 2.0 1.0
   --drawDiag window diag
-  let anim = Anim $ \t -> DiagT (apt, Diag [ahp0, ahp1])
+  let animf t = DiagT (apt, Diag [ahp0, ahp1])
         where apt = ptToDrawable pt
-              ahp0 = hpToDrawable hp0
-              ahp1 = hpToDrawable hp1
+              ahp0 = hpToDrawable $ rotateHP rot hp0
+              ahp1 = hpToDrawable $ rotateHP rot hp1
+              hp0 = HP (V2 1.0 0.0) True
+              hp1 = HP (V2 0.0 1.0) True
+              pt = intersectHPs hp0 hp1
+              rot = angToRotation (angVel * t)
+              angVel = pi
+  let anim = Anim animf
 
   let loop startTime keySet = do
         now <- getPOSIXTime

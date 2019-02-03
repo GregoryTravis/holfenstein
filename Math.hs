@@ -5,7 +5,7 @@ import Linear
 data Rotation = Rotation (V2 (V2 Double)) deriving Show
 
 -- pair of rows
-angToRotation ang = V2 (V2 rx (- ry)) (V2 ry rx)
+angToRotation ang = Rotation $ V2 (V2 rx (- ry)) (V2 ry rx)
   where rx = cos ang
         ry = sin ang
 
