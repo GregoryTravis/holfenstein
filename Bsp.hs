@@ -12,12 +12,16 @@ module Bsp
 
 import Linear
 
+import Math
 
 -- Half plane: defined by a line and a direction.
 -- The line goes through the given point and is perpendicual to the line from
 -- the origin to the point.  The point is also called the plane's origin.
 -- The direction is encoded as a boolean: does the half plane include the origin?
 data HP = HP (V2 Double) Bool deriving Show
+
+rotateHP :: Rotation -> HP -> HP
+rotateHP r (HP v b) = HP (rotatePoint r v) b
 
 -- Segment: a line segment, line, ray, or empty.
 -- Defined by a HP and a distance from the HP's point along the HP's line.

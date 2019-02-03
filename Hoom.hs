@@ -3,11 +3,14 @@ module Main (main) where
 import Control.Concurrent
 import Control.Monad (unless)
 import Data.Char (ord)
+import Data.Maybe
+import Data.Time.Clock.POSIX (getPOSIXTime)
 import qualified Data.Set as S
 import Linear
 import System.Posix.Unistd
 import System.IO
 
+import Anim
 import Bsp
 import Diag
 import Util
@@ -47,22 +50,28 @@ main = do
                    p2 = V2 1.0 2.0
                    p3 = V2 2.0 1.0
   --drawDiag window diag
-  let apt = ptToDrawable pt -- Dpoint $ toNormalPoint pt -- Diag $ box (toNormalPoint pt)
-  let ahp0 = hpToDrawable hp0
-  let ahp1 = hpToDrawable hp1
-  let diag = DiagT (apt, Diag [ahp0, ahp1])
-  drawDiag window diag
+  let anim = Anim $ \t -> DiagT (apt, Diag [ahp0, ahp1])
+        where apt = ptToDrawable pt
+              ahp0 = hpToDrawable hp0
+              ahp1 = hpToDrawable hp1
 
-  blit window
+  let loop startTime keySet = do
+        now <- getPOSIXTime
+        let startTime' = case startTime of Nothing -> Just now
+                                           Just x -> Just x
+        let elapsed = realToFrac $ now - (fromJust startTime')
+        msp elapsed
 
-  let loop :: KeySet -> IO ()
-      loop keySet = do
+        drawDiag window (frameAt anim elapsed)
+        blit window
+        --msp "frame"
+
         (cursorPos, newKeySet, quitEvent) <- getInputWait keySet
         --msp (cursorPos, newKeySet)
         let quit = quitEvent || S.member 27 newKeySet || S.member (ord 'q') newKeySet
-        unless quit $ loop newKeySet
+        unless quit $ loop startTime' newKeySet
         return ()
-   in loop S.empty
+   in loop Nothing S.empty
   --threadDelay 5000000
 
   windowTerm window
