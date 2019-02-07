@@ -29,7 +29,11 @@ hpToDrawable (HP v _) = DiagT (Dline $ V2 pos neg, Ddiamond v)
 allCombinations [] = []
 allCombinations (x : xs) = [(x, y) | y <- xs] ++ (allCombinations xs)
 
-square = [HP (V2 1.0 0.0) True, HP (V2 0.0 1.0) True, HP (V2 (- 1.0) 0.0) True, HP (V2 0.0 (- 1.0)) True]
+square = [HP r l, HP u d, HP l r, HP d u]
+  where r = V2 1.0 0.0
+        l = V2 (-1.0) 0.0
+        u = V2 0.0 1.0
+        d = V2 0.0 (- 1.0)
 allIntersections hps = catMaybes $ map intr (allCombinations hps)
   where intr (a, b) = intersectHPs a b
 

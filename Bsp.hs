@@ -7,6 +7,7 @@ module Bsp
 , intersectHPs
 , planePosDir
 , rotateHP
+, translateHP
 ) where
 
 -- TODO: make some of these constructors private?
@@ -17,14 +18,15 @@ import Linear
 import Math
 import Util
 
--- Half plane: defined by a line and a direction.
--- The line goes through the given point and is perpendicual to the line from
--- the origin to the point.  The point is also called the plane's origin.
--- The direction is encoded as a boolean: does the half plane include the origin?
-data HP = HP (V2 Double) Bool deriving Show
+-- Half plane: defined by a point and a normalized direction.  The line
+-- bounding the half plane is perpendicular to the direction vector, and the
+-- direction vector points into the half plane bounded by the line.
+data HP = HP (V2 Double) (V2 Double) deriving Show
 
 rotateHP :: Rotation -> HP -> HP
-rotateHP r (HP v b) = HP (rotatePoint r v) b
+rotateHP r (HP p d) = HP (rotatePoint r p) (rotatePoint r d)
+translateHP :: V2 Double -> HP -> HP
+translateHP tv (HP p d) = HP (p + tv) d
 
 -- Intersection point: represents the intersection of two planes as both the
 -- pair of planes and the point.
@@ -39,13 +41,15 @@ planePosDir (V2 x y) = signorm (V2 (- y) x)
 -- c.  Solve this along with b * b == b * c and you get c.
 intersectHPs hp0 hp1 = case intersectHPsPoint hp0 hp1 of Just v -> Just $ IPt hp0 hp1 v
                                                          Nothing -> Nothing
-intersectHPsPoint (HP a@(V2 ax ay) _) (HP b@(V2 bx by) _)
-  -- | TR.trace (show ("CX", cx, cy, cx', cy', cross, a, b)) False = undefined
-  | cross == 0 = Nothing
-  | ax == 0 = Just $ V2 cx' cy'
-  | otherwise = Just $ V2 cx cy
-  where cross = ((ax * by) - (bx * ay))
-        cy = ((ax * (dot b b)) - (bx * (dot a a))) / cross
-        cx = ((dot a a) - (cy * ay)) / ax
-        cx' = ((ay * (dot b b)) - (by * (dot a a))) / (- cross)
-        cy' = ((dot a a) - (cx * ax)) / ay
+intersectHPsPoint a@(HP p0 d0@(V2 bx by)) b@(HP p1 d1@(V2 cx cy))
+  -- | TR.trace (show ("A", ax, ay, ax', ay', a, b)) False = undefined
+  | cross == 0.0 = Nothing
+  | bx == 0.0 = Just $ V2 ax' ay'
+  | otherwise = Just $ V2 ax ay
+  where m = p0 `dot` d0
+        n = p1 `dot` d1
+        cross = ((cy * bx) - (by * cx))
+        ay = ((n * bx) - (m * cx)) / cross
+        ax = (m - (ay * by)) / bx
+        ax' = ((n * by) - (m * cy)) / (- cross)
+        ay' = (m - (ax * bx)) / by
