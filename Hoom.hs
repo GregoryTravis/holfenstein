@@ -19,12 +19,24 @@ import Window
 
 (screenWidth, screenHeight) = (640, 480)
 
+iptToDrawable :: IPt -> Dpoint
 iptToDrawable (IPt _ _ v) = Dpoint v
 
+hpToDrawable :: HP -> DiagT Dline Ddiamond
 hpToDrawable (HP v _) = DiagT (Dline $ V2 pos neg, Ddiamond v)
   where pos = v + nperp
         neg = v - nperp
         nperp = 2 *^ (planePosDir v)
+
+-- I am giving this a terrible name because I know it must exist but I don't
+-- know enough to know what it's called and I refused to accept at the moment
+-- that it might be called fmap.
+mappily :: (a -> b) -> Maybe a -> Maybe b
+mappily f (Just x) = Just (f x)
+mappily f Nothing = Nothing
+
+segToDrawable :: Seg -> DiagT (DiagT Dline Ddiamond) (Diag (Maybe Dpoint))
+segToDrawable (Seg hp ipt0 ipt1) = DiagT (hpToDrawable hp, Diag [mappily iptToDrawable ipt0, mappily iptToDrawable ipt1])
 
 allCombinations [] = []
 allCombinations (x : xs) = [(x, y) | y <- xs] ++ (allCombinations xs)
@@ -37,7 +49,7 @@ square = [HP r l, HP u d, HP l r, HP d u]
 allIntersections hps = catMaybes $ map intr (allCombinations hps)
   where intr (a, b) = intersectHPs a b
 
-animf t = DiagT(Diag drhps, Diag drpts)
+animf_ t = DiagT (Diag drhps, Diag drpts)
   where rot = angToRotation (angVel * t)
         angVel = pi / 4.0
         rhps = map (rotateHP rot) hps
@@ -45,6 +57,12 @@ animf t = DiagT(Diag drhps, Diag drpts)
         drhps = map hpToDrawable rhps
         rpts = allIntersections rhps
         drpts = map iptToDrawable rpts
+
+animf :: Double -> Diag [(DiagT (DiagT Dline Ddiamond) (Diag (Maybe Dpoint)))]
+animf t = Diag [map segToDrawable inter]
+  where w = Prim (radialHP (V2 1.0 (-1.0)))
+        line = radialHP (V2 0.0 (-1.0))
+        inter = intersectHPCsg line w
 
 main = do
   hSetBuffering stdout NoBuffering

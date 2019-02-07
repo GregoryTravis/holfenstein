@@ -1,5 +1,6 @@
 module Util
-( assertM
+( assert
+, assertM
 , esp
 , eesp
 , feesp

@@ -54,6 +54,16 @@ instance Drawable a => Drawable (Diag a) where
   toLines (Diag diagrammables) = concat $ map toLines diagrammables
   transform t (Diag diagrammables) = Diag $ map (transform t) diagrammables
 
+instance Drawable a => Drawable (Maybe a) where
+  toLines (Just x) = toLines x
+  toLines Nothing = []
+  transform t (Just x) = Just $ transform t x
+  transform t Nothing = Nothing
+
+instance Drawable a => Drawable [a] where
+  toLines x = concat (map toLines x)
+  transform t x = map (transform t) x
+
 drawDiag :: Drawable a => Window -> a -> IO ()
 drawDiag window diag = do
   --msp diag
