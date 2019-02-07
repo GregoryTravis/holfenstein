@@ -19,7 +19,7 @@ import Window
 
 (screenWidth, screenHeight) = (640, 480)
 
-ptToDrawable pt = Dpoint $ toNormalPoint pt
+iptToDrawable (IPt _ _ v) = Dpoint v
 
 hpToDrawable (HP v _) = DiagT (Dline $ V2 pos neg, Ddiamond v)
   where pos = v + nperp
@@ -30,7 +30,7 @@ allCombinations [] = []
 allCombinations (x : xs) = [(x, y) | y <- xs] ++ (allCombinations xs)
 
 square = [HP (V2 1.0 0.0) True, HP (V2 0.0 1.0) True, HP (V2 (- 1.0) 0.0) True, HP (V2 0.0 (- 1.0)) True]
-allIntersections hps = map intr (allCombinations hps)
+allIntersections hps = catMaybes $ map intr (allCombinations hps)
   where intr (a, b) = intersectHPs a b
 
 animf t = DiagT(Diag drhps, Diag drpts)
@@ -40,7 +40,7 @@ animf t = DiagT(Diag drhps, Diag drpts)
         hps = square
         drhps = map hpToDrawable rhps
         rpts = allIntersections rhps
-        drpts = map ptToDrawable rpts
+        drpts = map iptToDrawable rpts
 
 main = do
   hSetBuffering stdout NoBuffering
