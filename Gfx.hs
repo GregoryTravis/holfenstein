@@ -38,11 +38,11 @@ drawPoint = if doSafeDrawPoint then safeDrawPoint else assertDrawPoint
 -- TODO this really should take doubles
 -- Can get rid of these three params, but nicely?
 drawLine :: Window -> Line Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
-drawLine w line color ptr pitch = case clipLine w line of Nothing -> return ()
+drawLine w line color ptr pitch = case clipLine line w of Nothing -> return ()
                                                           Just line -> drawLineUnclipped w line color ptr pitch
 
-clipLine :: Window -> Line Int -> Maybe (Line Int)
-clipLine w line = case clipLineLowX line winW of Just newLine -> clipLineHighX newLine winW
+clipLine :: Line Int -> Window -> Maybe (Line Int)
+clipLine line w = case clipLineLowX line winW of Just newLine -> clipLineHighX newLine winW
                                                  Nothing -> Nothing
   where (winW, winH) = getDimensions w
 

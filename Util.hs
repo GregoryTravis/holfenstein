@@ -7,6 +7,7 @@ module Util
 , sp
 , msp
 , fromLeftReal
+, mappily
 ) where
 
 import Control.Exception.Base
@@ -40,3 +41,10 @@ assertM m b a
       putStrLn $ show m
       return $ assert b a
       --return a
+
+-- I am giving this a terrible name because I know it must exist but I don't
+-- know enough to know what it's called and I refused to accept at the moment
+-- that it might be called fmap.
+mappily :: (a -> b) -> Maybe a -> Maybe b
+mappily f (Just x) = Just (f x)
+mappily f Nothing = Nothing
