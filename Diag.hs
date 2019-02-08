@@ -80,6 +80,11 @@ drawDiag window diag = do
           drawLine window (Line (V2 960 (-10)) (V2 (-320) 469)) white ptr pitch
           drawLine window (Line (V2 (-320) (-0)) (V2 960 479)) white ptr pitch
           drawLine window (Line (V2 (-320) (-10)) (V2 960 469)) white ptr pitch
+          drawLine window (xyFlipLine (Line (V2 (-320) 479) (V2 960 (-0)))) white ptr pitch
+          drawLine window (xyFlipLine (Line (V2 960 (-10)) (V2 (-320) 469))) white ptr pitch
+          drawLine window (xyFlipLine (Line (V2 (-320) (-0)) (V2 960 479))) white ptr pitch
+          drawLine window (xyFlipLine (Line (V2 (-320) (-10)) (V2 960 469))) white ptr pitch
+        xyFlipLine (Line (V2 x0 y0) (V2 x1 y1)) = Line (V2 y0 x0) (V2 y1 x1)
 -}
         --bb = bbox diag
         bb = V2 (V2 (- n) (- n)) (V2 n n)

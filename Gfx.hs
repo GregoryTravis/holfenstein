@@ -26,7 +26,7 @@ toOffset (V2 x y) pitch = y * (pitch `div` 4) + x
 
 inScreenBounds w (V2 x y) = case getDimensions w of (w, h) -> x >= 0 && y >= 0 && x < w && y < h
 
-doSafeDrawPoint = True
+doSafeDrawPoint = False
 drawPoint :: Window -> V2 Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
 assertDrawPoint w v c ptr pitch = do
   assertM (v, ptr, pitch) (inScreenBounds w v)
@@ -38,13 +38,22 @@ drawPoint = if doSafeDrawPoint then safeDrawPoint else assertDrawPoint
 -- TODO this really should take doubles
 -- Can get rid of these three params, but nicely?
 drawLine :: Window -> Line Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
-drawLine w line color ptr pitch = case clipLine line w of Nothing -> return ()
-                                                          Just line -> drawLineUnclipped w line color ptr pitch
+drawLine w line color ptr pitch = case clipLine line dim of Nothing -> return ()
+                                                            Just line -> drawLineUnclipped w line color ptr pitch
+  where dim = getDimensions w
 
-clipLine :: Line Int -> Window -> Maybe (Line Int)
-clipLine line w = case clipLineLowX line winW of Just newLine -> clipLineHighX newLine winW
-                                                 Nothing -> Nothing
-  where (winW, winH) = getDimensions w
+clipLine :: Line Int -> (Int, Int) -> Maybe (Line Int)
+clipLine line (winW, winH) = case clipLineHor line winW of Just newLine -> clipLineVer newLine winH
+                                                           Nothing -> Nothing
+
+clipLineHor :: Line Int -> Int -> Maybe (Line Int)
+clipLineHor line winW = case clipLineLowX line winW of Just newLine -> clipLineHighX newLine winW
+                                                       Nothing -> Nothing
+clipLineVer :: Line Int -> Int -> Maybe (Line Int)
+clipLineVer line winH = case clipLineHor (xyFlipLine line) winH of Just newLine -> Just $ xyFlipLine newLine
+                                                                   Nothing -> Nothing
+
+xyFlipLine (Line (V2 x0 y0) (V2 x1 y1)) = Line (V2 y0 x0) (V2 y1 x1)
 
 -- Clips line to 0
 clipLineLowX :: Line Int -> Int -> Maybe (Line Int)
