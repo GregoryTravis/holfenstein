@@ -74,14 +74,17 @@ drawDiag window diag = do
   where foo :: Ptr Word32 -> Int -> IO ()
         foo ptr pitch = do
           floorAndCeiling window ptr pitch
-          mapM_ (\line -> drawLine window line white ptr pitch) (map toLineLine $ toLines (transform winT diag))
+          mapM_ (\line -> drawLine window line white ptr pitch) (map screenFlipLine (map toLineLine $ toLines (transform winT diag)))
         --bb = bbox diag
         bb = V2 (V2 (- n) (- n)) (V2 n n)
         n = 4.0
         winT = boxToBoxTransform bb (V2 (V2 0.0 0.0) winV)
-        winV = case (getDimensions window) of (w, h) -> V2 (fromIntegral (w - 1)) (fromIntegral (h - 1))
+        (winW, winH) = getDimensions window
+        winV = V2 (fromIntegral (winW - 1)) (fromIntegral (winH - 1))
         --toLines (Diag lines) = map toLine lines
         toLineLine (V2 a b) = Line (floorV a) (floorV b)
+        screenFlipLine (Line a b) = Line (screenFlip a) (screenFlip b)
+        screenFlip (V2 x y) = V2 x (winH - y - 1)
 
 --pointsOf :: Diag -> [(V2 Double)]
 --pointsOf (Diag lines) = concat lines

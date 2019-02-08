@@ -6,6 +6,8 @@ module Bsp
 , intersectHPCsg
 , infSeg
 , intersectHPs
+, rotateHPAround
+, rotateHPAroundP
 , radialHP
 , originHP
 , planePosDir
@@ -34,6 +36,11 @@ rotateHP r (HP p d) = HP (rotatePoint r p) (rotatePoint r d)
 translateHP :: V2 Double -> HP -> HP
 translateHP tv (HP p d) = HP (p + tv) d
 
+rotateHPAround :: Rotation -> HP -> V2 Double -> HP
+rotateHPAround r hp center =
+  translateHP center (rotateHP r (translateHP (- center) hp))
+rotateHPAroundP r hp@(HP p d) = rotateHPAround r hp p
+
 insideHP (HP p d) pt = ((pt - p) `dot` d) > 0
 
 -- A segment is a possibly infinite subset of a line.  The two intersection
@@ -48,7 +55,7 @@ intersectHPCsg :: HP -> Csg -> [Seg]
 intersectHPCsg hp csg = intersectSegCsg (infSeg hp) csg
 
 intersectSegCsg :: Seg -> Csg -> [Seg]
-intersectSegCsg seg (Prim hp) =[intersectSegHP seg hp]
+intersectSegCsg seg (Prim hp) = [intersectSegHP seg hp]
 intersectSegCsg seg (Intersection csg0 csg1) =
   pairwiseIntersectSegs (intersectSegCsg seg csg0) (intersectSegCsg seg csg1)
 
@@ -113,8 +120,8 @@ planePosDir (V2 x y) = signorm (V2 (- y) x)
 -- c.  Solve this along with b * b == b * c and you get c.
 intersectHPs hp0 hp1 = case intersectHPsPoint hp0 hp1 of Just v -> Just $ IPt hp0 hp1 v
                                                          Nothing -> Nothing
-intersectHPsPoint a@(HP p0 d0@(V2 bx by)) b@(HP p1 d1@(V2 cx cy))
-  -- | TR.trace (show ("A", ax, ay, ax', ay', a, b)) False = undefined
+intersectHPsPoint b@(HP p0 d0@(V2 bx by)) c@(HP p1 d1@(V2 cx cy))
+  -- | TR.trace (show ("A", ax, ay, ax', ay', cross, b, c)) False = undefined
   | cross == 0.0 = Nothing
   | bx == 0.0 = Just $ V2 ax' ay'
   | otherwise = Just $ V2 ax ay
@@ -124,4 +131,4 @@ intersectHPsPoint a@(HP p0 d0@(V2 bx by)) b@(HP p1 d1@(V2 cx cy))
         ay = ((n * bx) - (m * cx)) / cross
         ax = (m - (ay * by)) / bx
         ax' = ((n * by) - (m * cy)) / (- cross)
-        ay' = (m - (ax * bx)) / by
+        ay' = (m - (ax' * bx)) / by

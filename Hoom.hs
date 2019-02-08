@@ -19,14 +19,13 @@ import Window
 
 (screenWidth, screenHeight) = (640, 480)
 
-iptToDrawable :: IPt -> Dpoint
+--iptToDrawable :: IPt -> Dpoint
 iptToDrawable (IPt _ _ v) = Dpoint v
 
-hpToDrawable :: HP -> DiagT Dline Ddiamond
-hpToDrawable (HP v _) = DiagT (Dline $ V2 pos neg, Ddiamond v)
-  where pos = v + nperp
-        neg = v - nperp
-        nperp = 2 *^ (planePosDir v)
+--hpToDrawable :: HP -> DiagT Dline Ddiamond
+hpToDrawable (HP p d) = DiagT (Dline $ V2 pos neg, Ddiamond p)
+  where pos = p + (planePosDir d)
+        neg = p - (planePosDir d)
 
 -- I am giving this a terrible name because I know it must exist but I don't
 -- know enough to know what it's called and I refused to accept at the moment
@@ -35,7 +34,7 @@ mappily :: (a -> b) -> Maybe a -> Maybe b
 mappily f (Just x) = Just (f x)
 mappily f Nothing = Nothing
 
-segToDrawable :: Seg -> DiagT (DiagT Dline Ddiamond) (Diag (Maybe Dpoint))
+--segToDrawable :: Seg -> DiagT (DiagT Dline Ddiamond) (Diag (Maybe Dpoint))
 segToDrawable (Seg hp ipt0 ipt1) = DiagT (hpToDrawable hp, Diag [mappily iptToDrawable ipt0, mappily iptToDrawable ipt1])
 
 allCombinations [] = []
@@ -58,10 +57,20 @@ animf_ t = DiagT (Diag drhps, Diag drpts)
         rpts = allIntersections rhps
         drpts = map iptToDrawable rpts
 
-animf :: Double -> Diag [(DiagT (DiagT Dline Ddiamond) (Diag (Maybe Dpoint)))]
-animf t = Diag [map segToDrawable inter]
-  where w = Prim (radialHP (V2 1.0 (-1.0)))
-        line = radialHP (V2 0.0 (-1.0))
+coordAxes scale = Diag [Dline (V2 x0 x1), Dline (V2 y0 y1)]
+  where x0 = V2 (- (scale / 20.0)) 0.0
+        x1 = V2 scale 0.0
+        y0 = V2 0.0 (- (scale / 20.0))
+        y1 = V2 0.0 scale
+
+--animf :: Double -> Diag [(DiagT (DiagT Dline Ddiamond) (Diag (Maybe Dpoint)))]
+animf t = DiagT (Diag [hpToDrawable hp, hpToDrawable line], DiagT (Diag [map segToDrawable inter], coordAxes 4.0))
+--animf t = hpToDrawable line
+  where rot = angToRotation (angVel * t)
+        angVel = pi / 4.0
+        hp = rotateHPAroundP rot (radialHP (V2 (-1.0) 1.0))
+        w = Prim hp
+        line = radialHP (V2 0.0 2.0)
         inter = intersectHPCsg line w
 
 main = do
