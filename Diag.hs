@@ -75,6 +75,12 @@ drawDiag window diag = do
         foo ptr pitch = do
           floorAndCeiling window ptr pitch
           mapM_ (\line -> drawLine window line white ptr pitch) (map screenFlipLine (map toLineLine $ toLines (transform winT diag)))
+{-
+          drawLine window (Line (V2 (-320) 479) (V2 960 (-0))) white ptr pitch
+          drawLine window (Line (V2 960 (-10)) (V2 (-320) 469)) white ptr pitch
+          drawLine window (Line (V2 (-320) (-0)) (V2 960 479)) white ptr pitch
+          drawLine window (Line (V2 (-320) (-10)) (V2 960 469)) white ptr pitch
+-}
         --bb = bbox diag
         bb = V2 (V2 (- n) (- n)) (V2 n n)
         n = 4.0

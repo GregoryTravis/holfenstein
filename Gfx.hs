@@ -35,8 +35,37 @@ safeDrawPoint w v c ptr pitch = do
   when (inScreenBounds w v) $ pokeElemOff ptr (toOffset v pitch) c
 drawPoint = if doSafeDrawPoint then safeDrawPoint else assertDrawPoint
 
+-- TODO this really should take doubles
+-- Can get rid of these three params, but nicely?
 drawLine :: Window -> Line Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
-drawLine w (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
+drawLine w line color ptr pitch = case clipLine w line of Nothing -> return ()
+                                                          Just line -> drawLineUnclipped w line color ptr pitch
+
+clipLine :: Window -> Line Int -> Maybe (Line Int)
+clipLine w line = case clipLineLowX line winW of Just newLine -> clipLineHighX newLine winW
+                                                 Nothing -> Nothing
+  where (winW, winH) = getDimensions w
+
+-- Clips line to 0
+clipLineLowX :: Line Int -> Int -> Maybe (Line Int)
+clipLineLowX l@(Line a@(V2 x0 y0) b@(V2 x1 _)) winW
+  | x0 > x1 = clipLineLowX (Line b a) winW
+  | x0 < 0 && x1 < 0 = Nothing
+  | x0 < 0 && x1 >= 0 = Just clipped
+  | otherwise = Just l
+  where clipped = Line clippedPt b
+        clippedPt = V2 0 newY
+        newY = floor $ (fromIntegral y0) + (m * (fromIntegral (-x0)))
+        m = case b - a of (V2 deltaX deltaY) -> (fromIntegral deltaY) / (fromIntegral deltaX)
+clipLineHighX :: Line Int -> Int -> Maybe (Line Int)
+clipLineHighX line winW = case clipLineLowX (flipLine line winW) winW of Just newLine -> Just $ flipLine newLine winW
+                                                                         Nothing -> Nothing
+
+flipLine (Line a b) winW = Line (flip a) (flip b)
+  where flip (V2 x y) = V2 (winW - x - 1) y
+
+drawLineUnclipped :: Window -> Line Int -> PackedColor -> Ptr Word32 -> Int -> IO ()
+drawLineUnclipped w (Line a@(V2 x0 y0) (V2 x1 y1)) color ptr pitch = step fa delta count
   where delta | isVert = V2 ((signum dx) * (abs (dx / dy))) (signum dy)
               | otherwise = V2 (signum dx) ((signum dy) * (abs (dy / dx)))
         count | isVert = abs idy
