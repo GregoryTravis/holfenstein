@@ -64,7 +64,7 @@ coordAxes scale = Diag [Dline (V2 x0 x1), Dline (V2 y0 y1)]
         y1 = V2 0.0 scale
 
 --animf :: Double -> Diag [(DiagT (DiagT Dline Ddiamond) (Diag (Maybe Dpoint)))]
-animf t = DiagT (Diag [hpToDrawable hp, hpToDrawable line], DiagT (Diag [map segToDrawable inter], coordAxes 4.0))
+animf t = DiagT (Diag [hpToDrawable hp], DiagT (Diag [map segToDrawable inter], coordAxes 4.0))
 --animf t = hpToDrawable line
   where rot = angToRotation (angVel * t)
         angVel = pi / 4.0
