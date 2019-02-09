@@ -28,7 +28,20 @@ hpToDrawable (HP p d) = DiagT (Dline $ V2 pos neg, Ddiamond p)
         neg = p - (planePosDir d)
 
 --segToDrawable :: Seg -> DiagT (DiagT Dline Ddiamond) (Diag (Maybe Dpoint))
-segToDrawable (Seg hp ipt0 ipt1) = DiagT (hpToDrawable hp, Diag [mappily iptToDrawable ipt0, mappily iptToDrawable ipt1])
+--segToDrawable (Seg hp ipt0 ipt1) = DiagT (hpToDrawable hp, Diag [mappily iptToDrawable ipt0, mappily iptToDrawable ipt1])
+--segToDrawable :: Seg -> Dline
+segToDrawable (Seg (HP p d) ipt0 ipt1) = DiagT (Dline (V2 a b), Ddiamond p)
+  where a = case ipt0 of Just (IPt _ _ v) -> v
+                         Nothing -> p - 1000 * (planePosDir d)
+        b = case ipt1 of Just (IPt _ _ v) -> v
+                         Nothing -> p + 1000 * (planePosDir d)
+{- Someone doesn't understand typeclasses
+segToDrawable :: Drawable a => Seg -> a
+segToDrawable (Seg hp Nothing Nothing) = hpToDrawable hp
+segToDrawable (Seg (HP p d) (Just (IPt _ _ v)) Nothing) = DiagT (Dpoint v, Dline (V2 v (v+d)))
+segToDrawable (Seg (HP p d) Nothing (Just (IPt _ _ v))) = DiagT (Dpoint v, Dline (V2 v (v-d)))
+segToDrawable (Seg _ (Just ipt0) (Just ipt1)) = Diag [iptToDrawable ipt0, iptToDrawable ipt1]
+-}
 
 allCombinations [] = []
 allCombinations (x : xs) = [(x, y) | y <- xs] ++ (allCombinations xs)
@@ -60,7 +73,8 @@ coordAxes scale = Diag [Dline (V2 x0 x1), Dline (V2 y0 y1)]
 animf t = DiagT (Diag [hpToDrawable hp], DiagT (Diag [map segToDrawable inter], coordAxes 4.0))
 --animf t = hpToDrawable line
   where rot = angToRotation (angVel * t)
-        angVel = pi
+        --rot = angToRotation (pi * 1.0)
+        angVel = pi -- / 8.0
         hp = rotateHPAroundP rot (radialHP (V2 (-1.0) 1.0))
         w = Prim hp
         line = radialHP (V2 0.0 2.0)

@@ -94,8 +94,8 @@ intersectSegHP orig@(Seg segHP ipt0 ipt1) hp
                                 Nothing -> containsPositiveInf hp segHP
         ipt1InHP = case ipt1 of (Just (IPt _ _ v)) -> insideHP hp v
                                 Nothing -> containsNegativeInf hp segHP
-        containsPositiveInf hp (HP p d) = (- (planePosDir d)) > 0
-        containsNegativeInf hp (HP p d) = (planePosDir d) > 0
+        containsPositiveInf (HP _ d) (HP segP segD) = (dot d (- (planePosDir segD))) > 0
+        containsNegativeInf (HP _ d) (HP segP segD) = (dot d (planePosDir segD)) > 0
 {-
 intersectSegHP_ orig@(Seg segHP ipt0@(IPt _ _ ipt0v) ipt1@(IPt _ _ ipt1v)) hp
   | ipt0InHP && ipt1InHP = orig
