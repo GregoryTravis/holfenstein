@@ -6,6 +6,7 @@ import Data.Char (ord)
 import Data.Maybe
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import qualified Data.Set as S
+import qualified Debug.Trace as TR
 import Linear
 import System.Posix.Unistd
 import System.IO
@@ -27,21 +28,22 @@ hpToDrawable (HP p d) = DiagT (Dline $ V2 pos neg, Ddiamond p)
   where pos = p + (planePosDir d)
         neg = p - (planePosDir d)
 
---segToDrawable :: Seg -> DiagT (DiagT Dline Ddiamond) (Diag (Maybe Dpoint))
---segToDrawable (Seg hp ipt0 ipt1) = DiagT (hpToDrawable hp, Diag [mappily iptToDrawable ipt0, mappily iptToDrawable ipt1])
---segToDrawable :: Seg -> Dline
 segToDrawable (Seg (HP p d) ipt0 ipt1) = DiagT (Dline (V2 a b), Ddiamond p)
   where a = case ipt0 of Just (IPt _ _ v) -> v
                          Nothing -> p - 1000 * (planePosDir d)
         b = case ipt1 of Just (IPt _ _ v) -> v
                          Nothing -> p + 1000 * (planePosDir d)
-{- Someone doesn't understand typeclasses
-segToDrawable :: Drawable a => Seg -> a
-segToDrawable (Seg hp Nothing Nothing) = hpToDrawable hp
-segToDrawable (Seg (HP p d) (Just (IPt _ _ v)) Nothing) = DiagT (Dpoint v, Dline (V2 v (v+d)))
-segToDrawable (Seg (HP p d) Nothing (Just (IPt _ _ v))) = DiagT (Dpoint v, Dline (V2 v (v-d)))
-segToDrawable (Seg _ (Just ipt0) (Just ipt1)) = Diag [iptToDrawable ipt0, iptToDrawable ipt1]
--}
+segToDrawable (Empty (HP p d)) = DiagT (Dline (V2 a b), Ddiamond p)
+  -- I think 0.1 just results in a 0-length line but that's fine
+  where a = p - (0.1 * planePosDir d)
+        b = p + (0.1 * planePosDir d)
+
+csgToDrawable :: Csg -> Diag (DiagT Dline Ddiamond)
+csgToDrawable csg = Diag $ map hpToDrawable $ gatherLines csg
+gatherLines (Prim hp) = [hp]
+gatherLines (Intersection a b) = (gatherLines a) ++ (gatherLines b)
+gatherLines (Union a b) = (gatherLines a) ++ (gatherLines b)
+gatherLines (Difference a b) = (gatherLines a) ++ (gatherLines b)
 
 allCombinations [] = []
 allCombinations (x : xs) = [(x, y) | y <- xs] ++ (allCombinations xs)
@@ -69,16 +71,18 @@ coordAxes scale = Diag [Dline (V2 x0 x1), Dline (V2 y0 y1)]
         y0 = V2 0.0 (- (scale / 20.0))
         y1 = V2 0.0 scale
 
---animf :: Double -> Diag [(DiagT (DiagT Dline Ddiamond) (Diag (Maybe Dpoint)))]
-animf t = DiagT (Diag [hpToDrawable hp], DiagT (Diag [map segToDrawable inter], coordAxes 4.0))
---animf t = hpToDrawable line
+animf t = DiagT (csgToDrawable csg, DiagT (Diag [map segToDrawable inter], coordAxes 4.0))
   where rot = angToRotation (angVel * t)
-        --rot = angToRotation (pi * 1.0)
-        angVel = pi -- / 8.0
-        hp = rotateHPAroundP rot (radialHP (V2 (-1.0) 1.0))
-        w = Prim hp
+        angVel = pi -- / 4.0
+
+        csg = rotateCsgAround rot (V2 (-1.0) 1.0) w
+        w = convex [radialHP (V2 (-1.0) 1.0),
+                    radialHP (V2 (1.0) 1.0),
+                    radialHP (V2 (1.0) (-1.0)),
+                    radialHP (V2 (-1.0) (-1.0))]
+
         line = radialHP (V2 0.0 2.0)
-        inter = intersectHPCsg line w
+        inter = intersectHPCsg line csg
 
 main = do
   hSetBuffering stdout NoBuffering

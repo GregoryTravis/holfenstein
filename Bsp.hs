@@ -8,6 +8,10 @@ module Bsp
 , intersectHPs
 , rotateHPAround
 , rotateHPAroundP
+, rotateCsg
+, translateCsg
+, rotateCsgAround
+, convex
 , radialHP
 , originHP
 , planePosDir
@@ -36,20 +40,34 @@ rotateHP r (HP p d) = HP (rotatePoint r p) (rotatePoint r d)
 translateHP :: V2 Double -> HP -> HP
 translateHP tv (HP p d) = HP (p + tv) d
 
-rotateHPAround :: Rotation -> HP -> V2 Double -> HP
-rotateHPAround r hp center =
+rotateHPAround :: Rotation -> V2 Double -> HP -> HP
+rotateHPAround r center hp =
   translateHP center (rotateHP r (translateHP (- center) hp))
-rotateHPAroundP r hp@(HP p d) = rotateHPAround r hp p
+rotateHPAroundP r hp@(HP p d) = rotateHPAround r p hp
 
 insideHP (HP p d) pt = ((pt - p) `dot` d) > 0
 
 -- A segment is a possibly infinite subset of a line.  The two intersection
 -- points are ordered: if the HP were rotated to be the area above the X axies,
 -- then the first ipt would be the one on the right.
-data Seg = Seg HP (Maybe IPt) (Maybe IPt) | Empty deriving Show
+data Seg = Seg HP (Maybe IPt) (Maybe IPt) | Empty HP deriving Show
 infSeg hp = Seg hp Nothing Nothing
 
 data Csg = Prim HP | Intersection Csg Csg | Union Csg Csg | Difference Csg Csg
+
+applyCsg :: (HP -> HP) -> Csg -> Csg
+applyCsg f (Prim hp) = Prim (f hp)
+applyCsg f (Intersection a b) = Intersection (applyCsg f a) (applyCsg f b)
+applyCsg f (Union a b) = Union (applyCsg f a) (applyCsg f b)
+applyCsg f (Difference a b) = Difference (applyCsg f a) (applyCsg f b)
+rotateCsg r = applyCsg $ rotateHP r
+translateCsg r = applyCsg $ translateHP r
+rotateCsgAround r center csg =
+  translateCsg center (rotateCsg r (translateCsg (- center) csg))
+
+convex :: [HP] -> Csg
+convex [hp] = Prim hp
+convex (hp : hps) = Intersection (Prim hp) (convex hps)
 
 intersectHPCsg :: HP -> Csg -> [Seg]
 intersectHPCsg hp csg = intersectSegCsg (infSeg hp) csg
@@ -63,8 +81,8 @@ pairwiseIntersectSegs (seg : segs) segs' = (map (intersectSegs seg) segs') ++ (p
 pairwiseIntersectSegs [] _ = []
 
 intersectSegs :: Seg -> Seg -> Seg
-intersectSegs Empty _ = Empty
-intersectSegs _ Empty = Empty
+intersectSegs e@(Empty _) _ = e
+intersectSegs _ e@(Empty _) = e
 intersectSegs a@(Seg hp ipt0 ipt1) b =
   assert (segsSameHP a b)
     inter (inter b ipt0) ipt1
@@ -83,12 +101,12 @@ segsSameHP (Seg hp _ _) (Seg hp' _ _) = hp == hp'
 -- TODO compactSegList: combines adjacent segs
 
 intersectSegHP :: Seg -> HP -> Seg
-intersectSegHP Empty hp = Empty
+intersectSegHP e@(Empty _) hp = e
 intersectSegHP orig@(Seg segHP ipt0 ipt1) hp
   | ipt0InHP && ipt1InHP = orig
   | not ipt0InHP && ipt1InHP = Seg segHP hpIpt ipt1
   | ipt0InHP && not ipt1InHP = Seg segHP ipt0 hpIpt
-  | not ipt0InHP && not ipt1InHP = Empty
+  | not ipt0InHP && not ipt1InHP = Empty segHP
   where hpIpt = intersectHPs segHP hp
         ipt0InHP = case ipt0 of (Just (IPt _ _ v)) -> insideHP hp v
                                 Nothing -> containsPositiveInf hp segHP
