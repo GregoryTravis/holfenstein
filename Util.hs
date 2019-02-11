@@ -3,6 +3,7 @@ module Util
 , assertM
 , esp
 , eesp
+, eeesp
 , feesp
 , sp
 , msp
@@ -23,6 +24,10 @@ esp a = unsafePerformIO $ do
 
 eesp s a = unsafePerformIO $ do
   putStrLn $ show $ s
+  return a
+
+eeesp s a = unsafePerformIO $ do
+  putStrLn $ show $ (s, a)
   return a
 
 -- Fake ones for quickly disabling

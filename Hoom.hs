@@ -25,8 +25,8 @@ iptToDrawable (IPt _ _ v) = Dpoint v
 
 --hpToDrawable :: HP -> DiagT Dline Ddiamond
 hpToDrawable (HP p d) = DiagT (Dline $ V2 pos neg, Ddiamond p)
-  where pos = p + (planePosDir d)
-        neg = p - (planePosDir d)
+  where pos = p + (0.7 * (planePosDir d))
+        neg = p - (0.7 * (planePosDir d))
 
 segToDrawable (Seg (HP p d) ipt0 ipt1) = DiagT (Dline (V2 a b), Ddiamond p)
   where a = case ipt0 of Just (IPt _ _ v) -> v
@@ -40,19 +40,16 @@ segToDrawable (Empty (HP p d)) = DiagT (Dline (V2 a b), Ddiamond p)
 
 csgToDrawable :: Csg -> Diag (DiagT Dline Ddiamond)
 csgToDrawable csg = Diag $ map hpToDrawable $ gatherLines csg
-gatherLines (Prim hp) = [hp]
-gatherLines (Intersection a b) = (gatherLines a) ++ (gatherLines b)
-gatherLines (Union a b) = (gatherLines a) ++ (gatherLines b)
-gatherLines (Difference a b) = (gatherLines a) ++ (gatherLines b)
 
 allCombinations [] = []
 allCombinations (x : xs) = [(x, y) | y <- xs] ++ (allCombinations xs)
 
-square = [HP r l, HP u d, HP l r, HP d u]
-  where r = V2 1.0 0.0
-        l = V2 (-1.0) 0.0
-        u = V2 0.0 1.0
-        d = V2 0.0 (- 1.0)
+--square = [HP r l, HP u d, HP l r, HP d u]
+square n = map radialHP [r, u, l, d]
+  where r = V2 n 0.0
+        l = V2 (-n) 0.0
+        u = V2 0.0 n
+        d = V2 0.0 (- n)
 allIntersections hps = catMaybes $ map intr (allCombinations hps)
   where intr (a, b) = intersectHPs a b
 
@@ -60,7 +57,7 @@ animf_ t = DiagT (Diag drhps, Diag drpts)
   where rot = angToRotation (angVel * t)
         angVel = pi / 4.0
         rhps = map (rotateHP rot) hps
-        hps = square
+        hps = square 1.0
         drhps = map hpToDrawable rhps
         rpts = allIntersections rhps
         drpts = map iptToDrawable rpts
@@ -71,18 +68,24 @@ coordAxes scale = Diag [Dline (V2 x0 x1), Dline (V2 y0 y1)]
         y0 = V2 0.0 (- (scale / 20.0))
         y1 = V2 0.0 scale
 
-animf t = DiagT (csgToDrawable csg, DiagT (Diag [map segToDrawable inter], coordAxes 4.0))
-  where rot = angToRotation (angVel * t)
-        angVel = pi -- / 4.0
+animf t = DiagT (csgToDrawable csg, DiagT (Diag [map segToDrawable (concat inters)], coordAxes 4.0))
+  where rot = angToRotation ang
+        ang = (angVel * t)
+        -- ang = 0 -- (angVel * t)
+        angVel = pi -- / 24.0
 
-        csg = rotateCsgAround rot (V2 (-1.0) 1.0) w
-        w = convex [radialHP (V2 (-1.0) 1.0),
-                    radialHP (V2 (1.0) 1.0),
-                    radialHP (V2 (1.0) (-1.0)),
-                    radialHP (V2 (-1.0) (-1.0))]
-
-        line = radialHP (V2 0.0 2.0)
-        inter = intersectHPCsg line csg
+        hps' = [radialHP (V2 (-1.0) 1.0),
+                radialHP (V2 (1.0) 1.0),
+                radialHP (V2 (1.0) (-1.0)),
+                radialHP (V2 (-1.0) (-1.0))]
+        hps = hps' -- [hps' !! 0, hps' !! 2]
+        csgu = Intersection (convex (square 1.5)) (convex hps)
+        --csgu = convex hps
+        --csgu = convex (square 1.0)
+        csg = rotateCsgAround rot (V2 (-1.0) 1.0) csgu
+        inters = map (\line -> intersectHPCsg line csg) (gatherLines csg)
+        --line = radialHP (V2 0.0 0.5)
+        --inters = esp $ map (\line -> intersectHPCsg line csg) [line]
 
 main = do
   hSetBuffering stdout NoBuffering

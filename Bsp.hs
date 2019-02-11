@@ -11,6 +11,7 @@ module Bsp
 , rotateCsg
 , translateCsg
 , rotateCsgAround
+, gatherLines
 , convex
 , radialHP
 , originHP
@@ -69,11 +70,19 @@ convex :: [HP] -> Csg
 convex [hp] = Prim hp
 convex (hp : hps) = Intersection (Prim hp) (convex hps)
 
+gatherLines (Prim hp) = [hp]
+gatherLines (Intersection a b) = (gatherLines a) ++ (gatherLines b)
+gatherLines (Union a b) = (gatherLines a) ++ (gatherLines b)
+gatherLines (Difference a b) = (gatherLines a) ++ (gatherLines b)
+
 intersectHPCsg :: HP -> Csg -> [Seg]
 intersectHPCsg hp csg = intersectSegCsg (infSeg hp) csg
 
 intersectSegCsg :: Seg -> Csg -> [Seg]
-intersectSegCsg seg (Prim hp) = [intersectSegHP seg hp]
+intersectSegCsg seg (Prim hp)
+  -- Don't self-clip
+  | segsSameSegHP seg hp = [seg]
+  | otherwise = [intersectSegHP seg hp]
 intersectSegCsg seg (Intersection csg0 csg1) =
   pairwiseIntersectSegs (intersectSegCsg seg csg0) (intersectSegCsg seg csg1)
 
@@ -95,14 +104,20 @@ otherHp hp (IPt hp0 hp1 _)
   | hp == hp1 = hp0
 
 segsSameHP (Seg hp _ _) (Seg hp' _ _) = hp == hp'
+segsSameSegHP :: Seg -> HP -> Bool
+segsSameSegHP (Seg hp _ _) hp' = hp == hp'
 
 -- TODO checkSeg: seg's hp must be on of the hps of both intersection points
 -- TODO checkSegList: checks that segs are nondecreasing
 -- TODO compactSegList: combines adjacent segs
 
-intersectSegHP :: Seg -> HP -> Seg
-intersectSegHP e@(Empty _) hp = e
-intersectSegHP orig@(Seg segHP ipt0 ipt1) hp
+intersectSegHP seg hp =
+  let res = intersectSegHP' seg hp
+   in res -- eesp (show ("IHP", res, seg, hp)) res
+intersectSegHP' :: Seg -> HP -> Seg
+intersectSegHP' e@(Empty _) hp = e
+intersectSegHP' orig@(Seg segHP ipt0 ipt1) hp
+  -- | TR.trace (show ("int", ipt0InHP, ipt1InHP, containsPositiveInf hp segHP, containsNegativeInf hp segHP)) False = undefined
   | ipt0InHP && ipt1InHP = orig
   | not ipt0InHP && ipt1InHP = Seg segHP hpIpt ipt1
   | ipt0InHP && not ipt1InHP = Seg segHP ipt0 hpIpt
@@ -112,8 +127,11 @@ intersectSegHP orig@(Seg segHP ipt0 ipt1) hp
                                 Nothing -> containsPositiveInf hp segHP
         ipt1InHP = case ipt1 of (Just (IPt _ _ v)) -> insideHP hp v
                                 Nothing -> containsNegativeInf hp segHP
-        containsPositiveInf (HP _ d) (HP segP segD) = (dot d (- (planePosDir segD))) > 0
-        containsNegativeInf (HP _ d) (HP segP segD) = (dot d (planePosDir segD)) > 0
+        containsPositiveInf hp (HP segP segD) = insideHP hp (segP - (huge * (planePosDir segD)))
+        containsNegativeInf hp (HP segP segD) = insideHP hp (segP + (huge * (planePosDir segD)))
+        huge = 1000.0
+        --containsPositiveInf (HP _ d) (HP segP segD) = (dot d (- (planePosDir segD))) > 0
+        --containsNegativeInf (HP _ d) (HP segP segD) = (dot d (planePosDir segD)) > 0
 {-
 intersectSegHP_ orig@(Seg segHP ipt0@(IPt _ _ ipt0v) ipt1@(IPt _ _ ipt1v)) hp
   | ipt0InHP && ipt1InHP = orig
