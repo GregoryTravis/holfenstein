@@ -50,10 +50,10 @@ square n = map radialHP [r, u, l, d]
         l = V2 (-n) 0.0
         u = V2 0.0 n
         d = V2 0.0 (- n)
-diamond = [radialHP (V2 (-1.0) 1.0),
-           radialHP (V2 (1.0) 1.0),
-           radialHP (V2 (1.0) (-1.0)),
-           radialHP (V2 (-1.0) (-1.0))]
+diamond n = [radialHP (V2 (-n) n),
+             radialHP (V2 (n) n),
+             radialHP (V2 (n) (-n)),
+             radialHP (V2 (-n) (-n))]
 allIntersections hps = catMaybes $ map intr (allCombinations hps)
   where intr (a, b) = intersectHPs a b
 
@@ -76,9 +76,9 @@ animf t = DiagT (csgToDrawable csg, DiagT (Diag [map segToDrawable (concat inter
   where rot = angToRotation ang
         ang = (angVel * t)
         -- ang = 0 -- (angVel * t)
-        angVel = pi -- / 24.0
+        angVel = pi / 8.0
 
-        csgu = Intersection (convex (square 1.5)) (convex diamond)
+        csgu = Intersection (convex (square 1.5)) (translateCsg (V2 1.4 0.0) (convex (diamond 1.0)))
         --csgu = convex hps
         --csgu = convex (square 1.0)
         csg = rotateCsgAround rot (V2 (-1.0) 1.0) csgu
