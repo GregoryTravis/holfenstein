@@ -85,6 +85,8 @@ intersectSegCsg seg (Prim hp)
   | otherwise = [intersectSegHP seg hp]
 intersectSegCsg seg (Intersection csg0 csg1) =
   pairwiseIntersectSegs (intersectSegCsg seg csg0) (intersectSegCsg seg csg1)
+intersectSegCsg seg (Union csg0 csg1) =
+  (intersectSegCsg seg csg0) ++ (intersectSegCsg seg csg1)
 
 pairwiseIntersectSegs (seg : segs) segs' = (map (intersectSegs seg) segs') ++ (pairwiseIntersectSegs segs segs')
 pairwiseIntersectSegs [] _ = []
