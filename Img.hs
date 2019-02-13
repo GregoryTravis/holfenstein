@@ -9,6 +9,8 @@ module Img
 , white
 , lightGray
 , darkGray
+, red
+, green
 ) where
 
 import Codec.Picture
@@ -23,6 +25,8 @@ type PackedColor = Word32
 white = packColor $ Color 255 255 255
 lightGray = packColor $ Color 200 200 200
 darkGray = packColor $ Color 120 120 120
+red = packColor $ Color 255 0 0
+green = packColor $ Color 0 255 0
 
 packColor :: Color -> Word32
 packColor (Color r g b) =

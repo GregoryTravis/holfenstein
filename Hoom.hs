@@ -14,6 +14,7 @@ import System.IO
 import Anim
 import Bsp
 import Diag
+import Img
 import Math
 import Util
 import Window
@@ -21,19 +22,19 @@ import Window
 (screenWidth, screenHeight) = (640, 480)
 
 --iptToDrawable :: IPt -> Dpoint
-iptToDrawable (IPt _ _ v) = Dpoint v
+iptToDrawable (IPt _ _ v) = Dpoint red v
 
 --hpToDrawable :: HP -> DiagT Dline Ddiamond
-hpToDrawable (HP p d) = DiagT (Dline $ V2 pos neg, Ddiamond p)
+hpToDrawable (HP p d) = DiagT (Dline darkGray $ V2 pos neg, Ddiamond darkGray p)
   where pos = p + (0.7 * (planePosDir d))
         neg = p - (0.7 * (planePosDir d))
 
-segToDrawable (Seg (HP p d) ipt0 ipt1) = DiagT (Dline (V2 a b), Ddiamond p)
+segToDrawable (Seg (HP p d) ipt0 ipt1) = DiagT (Dline white (V2 a b), Ddiamond white p)
   where a = case ipt0 of Just (IPt _ _ v) -> v
                          Nothing -> p - 1000 * (planePosDir d)
         b = case ipt1 of Just (IPt _ _ v) -> v
                          Nothing -> p + 1000 * (planePosDir d)
-segToDrawable (Empty (HP p d)) = DiagT (Dline (V2 a b), Ddiamond p)
+segToDrawable (Empty (HP p d)) = DiagT (Dline white (V2 a b), Ddiamond white p)
   -- I think 0.1 just results in a 0-length line but that's fine
   where a = p - (0.1 * planePosDir d)
         b = p + (0.1 * planePosDir d)
@@ -66,7 +67,7 @@ animf_ t = DiagT (Diag drhps, Diag drpts)
         rpts = allIntersections rhps
         drpts = map iptToDrawable rpts
 
-coordAxes scale = Diag [Dline (V2 x0 x1), Dline (V2 y0 y1)]
+coordAxes scale = Diag [Dline darkGray (V2 x0 x1), Dline darkGray (V2 y0 y1)]
   where x0 = V2 (- (scale / 20.0)) 0.0
         x1 = V2 scale 0.0
         y0 = V2 0.0 (- (scale / 20.0))

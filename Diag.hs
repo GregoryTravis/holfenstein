@@ -20,27 +20,29 @@ import Math
 import Util
 import Window
 
+data CLine = CLine PackedColor (V2 (V2 Double))
+
 class Drawable a where
-  toLines :: a -> [V2 (V2 Double)]
+  toLines :: a -> [CLine]
   transform :: Trans -> a -> a
 
-data Dline = Dline (V2 (V2 Double)) deriving Show
+data Dline = Dline PackedColor (V2 (V2 Double)) deriving Show
 
 instance Drawable Dline where
-  toLines (Dline line) = [line]
-  transform t (Dline line) = Dline $ transformLine t line
+  toLines (Dline color line) = [CLine color line]
+  transform t (Dline color line) = Dline color $ transformLine t line
 
-data Dpoint = Dpoint (V2 Double) deriving Show
+data Dpoint = Dpoint PackedColor (V2 Double) deriving Show
 
 instance Drawable Dpoint where
-  toLines (Dpoint v) = box v
-  transform t (Dpoint v) = Dpoint $ transformV t v
+  toLines (Dpoint color v) = map (CLine color) $ box v
+  transform t (Dpoint color v) = Dpoint color $ transformV t v
 
-data Ddiamond = Ddiamond (V2 Double) deriving Show
+data Ddiamond = Ddiamond PackedColor (V2 Double) deriving Show
 
 instance Drawable Ddiamond where
-  toLines (Ddiamond v) = diamond v
-  transform t (Ddiamond v) = Ddiamond $ transformV t v
+  toLines (Ddiamond color v) = map (CLine color) $ diamond v
+  transform t (Ddiamond color v) = Ddiamond color $ transformV t v
 
 data DiagT a b = DiagT (a, b) deriving Show
 
@@ -74,7 +76,7 @@ drawDiag window diag = do
   where foo :: Ptr Word32 -> Int -> IO ()
         foo ptr pitch = do
           floorAndCeiling window ptr pitch
-          mapM_ (\line -> drawLine window line white ptr pitch) (map screenFlipLine (map toLineLine $ toLines (transform winT diag)))
+          mapM_ (\(CLine color line) -> drawLine window (screenFlipLine (toLineLine line)) color ptr pitch) $ toLines (transform winT diag)
 {-
           drawLine window (Line (V2 (-320) 479) (V2 960 (-0))) white ptr pitch
           drawLine window (Line (V2 960 (-10)) (V2 (-320) 469)) white ptr pitch
@@ -130,7 +132,7 @@ bbox diag = V2 (V2 minX minY) (V2 maxX maxY)
         maxX = maximum xs
         maxY = maximum ys
         (xs, ys) = unzip tups
-        tups = concat (map (\(V2 a b) -> [v2p a, v2p b]) (toLines diag))
+        tups = concat (map (\(V2 a b) -> [v2p a, v2p b]) (map (\ (CLine _ line) -> line) (toLines diag)))
 
 diamond p = diamondR p 4
 diamondR p radius = cycleLines [a, b, c, d]
