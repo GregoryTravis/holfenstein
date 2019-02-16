@@ -123,8 +123,8 @@ intersectSegHP orig@(Seg segHP php nhp) hp
 -- endpoints inside the given HP?
 intersectionInside :: HP -> Maybe HP -> HP -> Bool
 intersectionInside segHP Nothing hp = posOfHPInsideHP segHP hp
-intersectionInside segHP (Just php) hp = case intersectHPs segHP php of Just p -> insideHP hp p
-                                                                        Nothing -> posOfHPInsideHP segHP hp
+intersectionInside segHP php hp = maybe (posOfHPInsideHP segHP hp)
+                                    (insideHP hp) (maybe Nothing (intersectHPs segHP) php)
 
 posOfHPInsideHP :: HP -> HP -> Bool
 posOfHPInsideHP (HP p d) (HP p' d')
