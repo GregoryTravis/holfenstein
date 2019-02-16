@@ -46,6 +46,7 @@ rotateHPAround r center hp =
 rotateHPAroundP r hp@(HP p d) = rotateHPAround r p hp
 
 insideHP (HP p d) pt = ((pt - p) `dot` d) > 0
+negateHP (HP p d) = HP p (-d)
 
 -- A segment is a possibly infinite subset of a line, with a distinguished
 -- side.  The two intersection points are ordered: if the HP were rotated to be
