@@ -126,6 +126,7 @@ intersectionInside segHP Nothing hp = posOfHPInsideHP segHP hp
 intersectionInside segHP php hp = maybe (posOfHPInsideHP segHP hp)
                                     (insideHP hp) (maybe Nothing (intersectHPs segHP) php)
 
+-- Is the positive point-at-infinity of the given HP inside the second HP?
 posOfHPInsideHP :: HP -> HP -> Bool
 posOfHPInsideHP (HP p d) (HP p' d')
   -- TODO This is more correct
