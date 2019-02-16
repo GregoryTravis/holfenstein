@@ -2,7 +2,6 @@ module Bsp
 ( HP(..)
 , Seg(..)
 , Csg(..)
-, IPt(..)
 , intersectHPCsg
 , infSeg
 , intersectHPs
@@ -48,10 +47,11 @@ rotateHPAroundP r hp@(HP p d) = rotateHPAround r p hp
 
 insideHP (HP p d) pt = ((pt - p) `dot` d) > 0
 
--- A segment is a possibly infinite subset of a line.  The two intersection
--- points are ordered: if the HP were rotated to be the area above the X axies,
--- then the first ipt would be the one on the right.
-data Seg = Seg HP (Maybe IPt) (Maybe IPt) | Empty HP deriving Show
+-- A segment is a possibly infinite subset of a line, with a distinguished
+-- side.  The two intersection points are ordered: if the HP were rotated to be
+-- the area above the X axis, then the first ipt would be the one on the right,
+-- and thus the more positive one in the local line space of the base hp.
+data Seg = Seg HP (Maybe HP) (Maybe HP) | Empty HP deriving Show
 infSeg hp = Seg hp Nothing Nothing
 
 data Csg = Prim HP | Intersection Csg Csg | Union Csg Csg | Difference Csg Csg
@@ -98,12 +98,8 @@ intersectSegs a@(Seg hp ipt0 ipt1) b =
   assert (segsSameHP a b)
     inter (inter b ipt0) ipt1
     --intersectSegHP (intersectSegHP b (otherHp hp ipt0)) (otherHp hp ipt1)
-  where inter seg (Just ipt) = intersectSegHP seg (otherHp hp ipt)
+  where inter seg (Just hp) = intersectSegHP seg hp
         inter seg Nothing = seg
-
-otherHp hp (IPt hp0 hp1 _)
-  | hp == hp0 = hp1
-  | hp == hp1 = hp0
 
 segsSameHP (Seg hp _ _) (Seg hp' _ _) = hp == hp'
 segsSameSegHP :: Seg -> HP -> Bool
@@ -121,33 +117,21 @@ intersectSegHP' e@(Empty _) hp = e
 intersectSegHP' orig@(Seg segHP ipt0 ipt1) hp
   -- | TR.trace (show ("int", ipt0InHP, ipt1InHP, containsPositiveInf hp segHP, containsNegativeInf hp segHP)) False = undefined
   | ipt0InHP && ipt1InHP = orig
-  | not ipt0InHP && ipt1InHP = Seg segHP hpIpt ipt1
-  | ipt0InHP && not ipt1InHP = Seg segHP ipt0 hpIpt
+  | not ipt0InHP && ipt1InHP = Seg segHP (Just hp) ipt1
+  | ipt0InHP && not ipt1InHP = Seg segHP ipt0 (Just hp)
   | not ipt0InHP && not ipt1InHP = Empty segHP
-  where hpIpt = intersectHPs segHP hp
-        ipt0InHP = case ipt0 of (Just (IPt _ _ v)) -> insideHP hp v
-                                Nothing -> containsPositiveInf hp segHP
-        ipt1InHP = case ipt1 of (Just (IPt _ _ v)) -> insideHP hp v
-                                Nothing -> containsNegativeInf hp segHP
+  where --`hpIpt = intersectHPs segHP hp
+        posInt = case ipt0 of Just hp -> intersectHPs segHP hp
+                              Nothing -> Nothing
+        negInt = case ipt1 of Just hp -> intersectHPs segHP hp
+                              Nothing -> Nothing
+        ipt0InHP = case posInt of Just v -> insideHP hp v
+                                  Nothing -> containsPositiveInf hp segHP
+        ipt1InHP = case negInt of Just v -> insideHP hp v
+                                  Nothing -> containsNegativeInf hp segHP
         containsPositiveInf hp (HP segP segD) = insideHP hp (segP - (huge * (planePosDir segD)))
         containsNegativeInf hp (HP segP segD) = insideHP hp (segP + (huge * (planePosDir segD)))
         huge = 1000.0
-        --containsPositiveInf (HP _ d) (HP segP segD) = (dot d (- (planePosDir segD))) > 0
-        --containsNegativeInf (HP _ d) (HP segP segD) = (dot d (planePosDir segD)) > 0
-{-
-intersectSegHP_ orig@(Seg segHP ipt0@(IPt _ _ ipt0v) ipt1@(IPt _ _ ipt1v)) hp
-  | ipt0InHP && ipt1InHP = orig
-  | not ipt0InHP && ipt1InHP = Seg segHP hp ipt1InHP
-  | ipt0InHP && not ipt1InHP = Seg segHP ipt0InHP hp
-  | not ipt0InHP && not ipt1InHP = Empty
-  where hpIpt = intersectHPs segHP hp
-        ipt0InHP = insideHP hp ipt0v
-        ipt1InHP = insideHP hp ipt1v
--}
-
--- Intersection point: represents the intersection of two planes as both the
--- pair of planes and the point.
-data IPt = IPt HP HP (V2 Double) deriving Show
 
 planePosDir (V2 x y) = signorm (V2 (- y) x)
 
@@ -156,9 +140,7 @@ planePosDir (V2 x y) = signorm (V2 (- y) x)
 -- perpendicular distance from both lines.  Put another way: a and b are the
 -- radial vectors of the two lines.  A point c is on the line if a * a == a *
 -- c.  Solve this along with b * b == b * c and you get c.
-intersectHPs hp0 hp1 = case intersectHPsPoint hp0 hp1 of Just v -> Just $ IPt hp0 hp1 v
-                                                         Nothing -> Nothing
-intersectHPsPoint b@(HP p0 d0@(V2 bx by)) c@(HP p1 d1@(V2 cx cy))
+intersectHPs b@(HP p0 d0@(V2 bx by)) c@(HP p1 d1@(V2 cx cy))
   -- | TR.trace (show ("A", ax, ay, ax', ay', cross, b, c)) False = undefined
   | cross == 0.0 = Nothing
   | bx == 0.0 = Just $ V2 ax' ay'

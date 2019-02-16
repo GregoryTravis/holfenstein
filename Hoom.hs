@@ -21,18 +21,15 @@ import Window
 
 (screenWidth, screenHeight) = (640, 480)
 
---iptToDrawable :: IPt -> Dpoint
-iptToDrawable (IPt _ _ v) = Dpoint red v
-
 --hpToDrawable :: HP -> DiagT Dline Ddiamond
 hpToDrawable (HP p d) = DiagT (Dline darkGray $ V2 pos neg, Ddiamond darkGray p)
   where pos = p + (0.7 * (planePosDir d))
         neg = p - (0.7 * (planePosDir d))
 
-segToDrawable (Seg (HP p d) ipt0 ipt1) = DiagT (Dline white (V2 a b), Ddiamond white p)
-  where a = case ipt0 of Just (IPt _ _ v) -> v
+segToDrawable (Seg hp@(HP p d) ipt0 ipt1) = DiagT (Dline white (V2 a b), Ddiamond white p)
+  where a = case ipt0 of Just hp' -> fromJust $ intersectHPs hp hp'
                          Nothing -> p - 1000 * (planePosDir d)
-        b = case ipt1 of Just (IPt _ _ v) -> v
+        b = case ipt1 of Just hp' -> fromJust $ intersectHPs hp hp'
                          Nothing -> p + 1000 * (planePosDir d)
 segToDrawable (Empty (HP p d)) = DiagT (Dline white (V2 a b), Ddiamond white p)
   -- I think 0.1 just results in a 0-length line but that's fine
@@ -58,15 +55,6 @@ diamond n = [radialHP (V2 (-n) n),
 allIntersections hps = catMaybes $ map intr (allCombinations hps)
   where intr (a, b) = intersectHPs a b
 
-animf_ t = DiagT (Diag drhps, Diag drpts)
-  where rot = angToRotation (angVel * t)
-        angVel = pi / 4.0
-        rhps = map (rotateHP rot) hps
-        hps = square 1.0
-        drhps = map hpToDrawable rhps
-        rpts = allIntersections rhps
-        drpts = map iptToDrawable rpts
-
 coordAxes scale = Diag [Dline darkGray (V2 x0 x1), Dline darkGray (V2 y0 y1)]
   where x0 = V2 (- (scale / 20.0)) 0.0
         x1 = V2 scale 0.0
@@ -79,7 +67,7 @@ animf t = DiagT (csgToDrawable csg, DiagT (Diag [map segToDrawable (concat inter
         -- ang = 0 -- (angVel * t)
         angVel = pi / 8.0
 
-        csgu = Union (convex (square 1.5)) (translateCsg (V2 1.4 0.0) (convex (diamond 1.0)))
+        csgu = Intersection (convex (square 1.5)) (translateCsg (V2 1.4 0.0) (convex (diamond 1.0)))
         --csgu = convex hps
         --csgu = convex (square 1.0)
         csg = rotateCsgAround rot (V2 (-1.0) 1.0) csgu
