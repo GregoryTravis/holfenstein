@@ -20,10 +20,12 @@ module Bsp
 , allCells
 , cellBoundary
 , isProperBoundary
+, implicitCycletoExplicitCycle 
 ) where
 
 -- TODO: make some of these constructors private?
 
+import qualified Data.Map as M
 import qualified Debug.Trace as TR
 import Linear
 
@@ -182,3 +184,27 @@ cellBoundary csg = concat $ map (\line -> intersectHPCsg line csg) (gatherLines 
 isProperBoundary :: [Seg] -> Bool
 isProperBoundary segs =
   (length segs > 0) && (and $ map isProperSeg segs)
+
+-- Turn [(0, 1), (2, 0), (1, 2)] into [0, 1, 2].  Input needn't be in order.
+implicitCycletoExplicitCycle :: (Show a, Ord a) => [(a, a)] -> [a]
+implicitCycletoExplicitCycle [] = []
+implicitCycletoExplicitCycle steps = chase first first initMap
+  where initMap = esp $ M.fromList steps
+        first = case steps of (first, _) : _ -> first
+        --next :: a -> M.Map a a -> (a, M.Map a a)
+        --next x mp | TR.trace (show ("next", x, mp)) False = undefined
+        next x mp = let nextX = (mp M.! x) in (nextX, (M.delete x mp))
+        --chase first x mp | TR.trace (show ("chase", first, x, mp)) False = undefined
+        chase first x mp = let (nextX, newMp) = next x mp
+                            in if nextX == first
+                                 then (assert (M.null newMp) [x])
+                                 else x : (chase first nextX newMp)
+
+{-
+sortSegs :: [Seg] -> [Seg]
+sortSegs [] = []
+sortSegs segs = implicitCycletoExplicitCycle segCycleImplicit
+  where hpToSeg = M.fromList $ map (\seg@(Seg hp _ _) -> (hp, seg)) segs
+        segCycleImplicit = map (\seg@(Seg hp php _) -> (seg, (hpToSeg M.! php))) segs
+        --chase first (Seg hp pnp nhp)
+-}

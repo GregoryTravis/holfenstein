@@ -115,6 +115,7 @@ animf t = DiagT (Diag (map segToDrawable cellCsg), Diag (map hpToDrawable cellHP
         cellCsg = fesp isProperBoundary $ cellBoundary (convex cellHPs)
 
 main = do
+  --msp $ implicitCycletoExplicitCycle [(0, 1), (2, 0), (1, 2)]
   hSetBuffering stdout NoBuffering
   window <- windowInit screenWidth screenHeight
 
