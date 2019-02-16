@@ -49,7 +49,7 @@ insideHP (HP p d) pt = ((pt - p) `dot` d) > 0
 
 -- A segment is a possibly infinite subset of a line, with a distinguished
 -- side.  The two intersection points are ordered: if the HP were rotated to be
--- the area above the X axis, then the first ipt would be the one on the right,
+-- the area above the X axis, then the first hp would be the one on the right,
 -- and thus the more positive one in the local line space of the base hp.
 data Seg = Seg HP (Maybe HP) (Maybe HP) | Empty HP deriving Show
 infSeg hp = Seg hp Nothing Nothing
@@ -94,10 +94,9 @@ pairwiseIntersectSegs [] _ = []
 intersectSegs :: Seg -> Seg -> Seg
 intersectSegs e@(Empty _) _ = e
 intersectSegs _ e@(Empty _) = e
-intersectSegs a@(Seg hp ipt0 ipt1) b =
+intersectSegs a@(Seg hp php nhp) b =
   assert (segsSameHP a b)
-    inter (inter b ipt0) ipt1
-    --intersectSegHP (intersectSegHP b (otherHp hp ipt0)) (otherHp hp ipt1)
+    inter (inter b php) nhp
   where inter seg (Just hp) = intersectSegHP seg hp
         inter seg Nothing = seg
 
@@ -114,21 +113,20 @@ intersectSegHP seg hp =
    in res -- eesp (show ("IHP", res, seg, hp)) res
 intersectSegHP' :: Seg -> HP -> Seg
 intersectSegHP' e@(Empty _) hp = e
-intersectSegHP' orig@(Seg segHP ipt0 ipt1) hp
-  -- | TR.trace (show ("int", ipt0InHP, ipt1InHP, containsPositiveInf hp segHP, containsNegativeInf hp segHP)) False = undefined
-  | ipt0InHP && ipt1InHP = orig
-  | not ipt0InHP && ipt1InHP = Seg segHP (Just hp) ipt1
-  | ipt0InHP && not ipt1InHP = Seg segHP ipt0 (Just hp)
-  | not ipt0InHP && not ipt1InHP = Empty segHP
-  where --`hpIpt = intersectHPs segHP hp
-        posInt = case ipt0 of Just hp -> intersectHPs segHP hp
-                              Nothing -> Nothing
-        negInt = case ipt1 of Just hp -> intersectHPs segHP hp
-                              Nothing -> Nothing
-        ipt0InHP = case posInt of Just v -> insideHP hp v
-                                  Nothing -> containsPositiveInf hp segHP
-        ipt1InHP = case negInt of Just v -> insideHP hp v
-                                  Nothing -> containsNegativeInf hp segHP
+intersectSegHP' orig@(Seg segHP php nhp) hp
+  | phpInHP && nhpInHP = orig
+  | not phpInHP && nhpInHP = Seg segHP (Just hp) nhp
+  | phpInHP && not nhpInHP = Seg segHP php (Just hp)
+  | not phpInHP && not nhpInHP = Empty segHP
+  where --`hphp = intersectHPs segHP hp
+        posInt = case php of Just hp -> intersectHPs segHP hp
+                             Nothing -> Nothing
+        negInt = case nhp of Just hp -> intersectHPs segHP hp
+                             Nothing -> Nothing
+        phpInHP = case posInt of Just v -> insideHP hp v
+                                 Nothing -> containsPositiveInf hp segHP
+        nhpInHP = case negInt of Just v -> insideHP hp v
+                                 Nothing -> containsNegativeInf hp segHP
         containsPositiveInf hp (HP segP segD) = insideHP hp (segP - (huge * (planePosDir segD)))
         containsNegativeInf hp (HP segP segD) = insideHP hp (segP + (huge * (planePosDir segD)))
         huge = 1000.0
