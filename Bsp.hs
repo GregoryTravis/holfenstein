@@ -119,6 +119,8 @@ intersectSegHP orig@(Seg segHP php nhp) hp
   where phpInHP = intersectionInside segHP php hp
         nhpInHP = intersectionInside (negateHP segHP) nhp hp
 
+-- Is the intersecction of the segment and one of it's (possibly missing)
+-- endpoints inside the given HP?
 intersectionInside :: HP -> Maybe HP -> HP -> Bool
 intersectionInside segHP Nothing hp = posOfHPInsideHP segHP hp
 intersectionInside segHP (Just php) hp = case intersectHPs segHP php of Just p -> insideHP hp p
