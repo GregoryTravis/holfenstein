@@ -18,6 +18,7 @@ module Bsp
 , rotateHP
 , translateHP
 , allCells
+, cellBoundary
 ) where
 
 -- TODO: make some of these constructors private?
@@ -163,5 +164,6 @@ allCells csg = allFlips (gatherLines csg)
   where allFlips :: [HP] -> [[HP]]
         allFlips [] = [[]]
         allFlips (hp : hps) = let flips = allFlips hps in (map (hp :) flips) ++ (map ((negateHP hp) :) flips)
---csgBoundary :: CSG -> [CSG]
---csgBoundary csg = 
+
+cellBoundary :: Csg -> [Seg]
+cellBoundary csg = concat $ map (\line -> intersectHPCsg line csg) (gatherLines csg)

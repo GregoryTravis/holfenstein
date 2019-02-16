@@ -100,6 +100,7 @@ animf t = DiagT (Diag (map segToDrawable cellCsg), Diag (map hpToDrawable cellHP
         angVel = pi / 4.0
 
         --csg = rotateCsgAround rot (V2 (-1.0) 1.0) (Prim (radialHP (V2 (-1.0) 1.0)))
+        -- the world
         csg = convex [radialHP (V2 (-1.0) 1.0),
                       radialHP (V2 1.0 1.0),
                       radialHP (V2 1.0 (-1.0)),
@@ -111,8 +112,7 @@ animf t = DiagT (Diag (map segToDrawable cellCsg), Diag (map hpToDrawable cellHP
           | ac == [] = []
           -- | otherwise = (ac !! 1)
           | otherwise = cycleThrough 1.0 t ac
-        cellIntCsg = convex cellHPs
-        cellCsg = concat $ map (\line -> intersectHPCsg line cellIntCsg) (gatherLines cellIntCsg)
+        cellCsg = cellBoundary (convex cellHPs)
 
 main = do
   hSetBuffering stdout NoBuffering
