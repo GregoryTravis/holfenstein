@@ -9,6 +9,7 @@ module Util
 , msp
 , fromLeftReal
 , mappily
+, mcompose
 ) where
 
 import Control.Exception.Base
@@ -53,3 +54,7 @@ assertM m b a
 mappily :: (a -> b) -> Maybe a -> Maybe b
 mappily f (Just x) = Just (f x)
 mappily f Nothing = Nothing
+
+mcompose :: (b -> Maybe c) -> (a -> Maybe b) -> (a -> Maybe c)
+mcompose f g x = case g x of Just y -> f y
+                             Nothing -> Nothing
