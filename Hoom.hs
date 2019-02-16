@@ -27,9 +27,11 @@ hpToDrawable (HP p d) = DiagT (Dline darkGray $ V2 pos neg, Ddiamond darkGray p)
         neg = p - (0.7 * (planePosDir d))
 
 segToDrawable (Seg hp@(HP p d) php nhp) = DiagT (Dline white (V2 a b), Ddiamond white p)
-  where a = case php of Just hp' -> fromJust $ intersectHPs hp hp'
+  where a = case php of Just hp' -> case intersectHPs hp hp' of Just v -> v
+                                                                Nothing -> p - 1000 * (planePosDir d)
                         Nothing -> p - 1000 * (planePosDir d)
-        b = case nhp of Just hp' -> fromJust $ intersectHPs hp hp'
+        b = case nhp of Just hp' -> case intersectHPs hp hp' of Just v -> v
+                                                                Nothing -> p + 1000 * (planePosDir d)
                         Nothing -> p + 1000 * (planePosDir d)
 segToDrawable (Empty (HP p d)) = DiagT (Dline white (V2 a b), Ddiamond white p)
   -- I think 0.1 just results in a 0-length line but that's fine
