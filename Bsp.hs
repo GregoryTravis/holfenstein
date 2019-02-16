@@ -134,18 +134,6 @@ posOfHPInsideHP (HP p d) (HP p' d')
   | otherwise = (d_perp `dot` d') < 0.0
   where d_perp = planePosDir d
 
--- When checking if a segment endpoint is inside a HP, we have to handle the case where there is no
--- endpoint.  In this case we should use a point-at-infinity, but since I don't quite know how to
--- do that, we just use a point far, far along the segment.
-farFarAway = 1000.0
-effectiveIntersectionPos :: Seg -> V2 Double
-effectiveIntersectionPos (Seg hp (Just php) nhp) = case intersectHPs hp php of Just v -> v
-                                                                               Nothing -> effectiveIntersectionPos (Seg hp Nothing nhp)
-effectiveIntersectionPos (Seg (HP p d) Nothing _) = p - farFarAway * (planePosDir d)
-effectiveIntersectionNeg (Seg hp php (Just nhp)) = case intersectHPs hp nhp of Just v -> v
-                                                                               Nothing -> effectiveIntersectionNeg (Seg hp php Nothing)
-effectiveIntersectionNeg (Seg (HP p d) _ Nothing) = p + farFarAway * (planePosDir d)
-
 planePosDir (V2 x y) = signorm (V2 (- y) x)
 
 -- The perpendicular distance of all points on a line to the origin is the
