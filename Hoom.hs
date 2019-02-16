@@ -50,6 +50,11 @@ square n = map radialHP [r, u, l, d]
         l = V2 (-n) 0.0
         u = V2 0.0 n
         d = V2 0.0 (- n)
+rect w h = map radialHP [r, u, l, d]
+  where r = V2 w 0.0
+        l = V2 (-w) 0.0
+        u = V2 0.0 h
+        d = V2 0.0 (- h)
 diamond n = [radialHP (V2 (-n) n),
              radialHP (V2 (n) n),
              radialHP (V2 (n) (-n)),
@@ -67,14 +72,17 @@ animf t = DiagT (csgToDrawable csg, DiagT (Diag [map segToDrawable (concat inter
   where rot = angToRotation ang
         ang = (angVel * t)
         -- ang = 0 -- (angVel * t)
-        angVel = pi / 1.0
+        angVel = pi / 4.0
 
+        sideySide = translateCsg (V2 (sin ang * 2.0) 0.0) (convex (rect 2.5 0.25))
         rotSlow = angToRotation (ang / 4.0)
         csgu = Intersection (convex (square 1.5)) (translateCsg (V2 1.4 0.0) (rotateCsg rotSlow (convex (diamond 1.0))))
         --csgu = convex hps
         --csgu = convex (square 1.0)
         csg = rotateCsgAround rot (V2 (-1.0) 1.0) csgu
-        inters = map (\line -> intersectHPCsg line csg) (gatherLines csg)
+        csguu = Intersection csg sideySide
+        --csguu = convex (rect 1.0 0.25)
+        inters = map (\line -> intersectHPCsg line csguu) (gatherLines csguu)
         --line = radialHP (V2 0.0 0.5)
         --inters = esp $ map (\line -> intersectHPCsg line csg) [line]
 
