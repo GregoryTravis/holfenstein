@@ -3,6 +3,7 @@ module Util
 , assertM
 , esp
 , eesp
+, fesp
 , eeesp
 , feesp
 , sp
@@ -25,6 +26,10 @@ esp a = unsafePerformIO $ do
 
 eesp s a = unsafePerformIO $ do
   putStrLn $ show $ s
+  return a
+
+fesp f a = unsafePerformIO $ do
+  putStrLn $ show $ f a
   return a
 
 eeesp s a = unsafePerformIO $ do

@@ -19,6 +19,7 @@ module Bsp
 , translateHP
 , allCells
 , cellBoundary
+, isProperBoundary
 ) where
 
 -- TODO: make some of these constructors private?
@@ -56,6 +57,16 @@ negateHP (HP p d) = HP p (-d)
 -- and thus the more positive one in the local line space of the base hp.
 data Seg = Seg HP (Maybe HP) (Maybe HP) | Empty HP deriving Show
 infSeg hp = Seg hp Nothing Nothing
+
+isFinite :: Seg -> Bool
+isFinite (Seg _ Nothing _) = False
+isFinite (Seg _ _ Nothing) = False
+isFinite _ = True
+
+isNonEmpty (Empty _) = False
+isNonEmpty _ = True
+
+isProperSeg seg = isFinite seg && isNonEmpty seg
 
 data Csg = Prim HP | Intersection Csg Csg | Union Csg Csg | Difference Csg Csg
 
@@ -167,3 +178,7 @@ allCells csg = allFlips (gatherLines csg)
 
 cellBoundary :: Csg -> [Seg]
 cellBoundary csg = concat $ map (\line -> intersectHPCsg line csg) (gatherLines csg)
+
+isProperBoundary :: [Seg] -> Bool
+isProperBoundary segs =
+  (length segs > 0) && (and $ map isProperSeg segs)

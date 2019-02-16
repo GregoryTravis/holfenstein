@@ -110,9 +110,9 @@ animf t = DiagT (Diag (map segToDrawable cellCsg), Diag (map hpToDrawable cellHP
         ac = allCells csg
         cellHPs
           | ac == [] = []
-          -- | otherwise = (ac !! 1)
+          -- | otherwise = (ac !! 5)
           | otherwise = cycleThrough 1.0 t ac
-        cellCsg = cellBoundary (convex cellHPs)
+        cellCsg = fesp isProperBoundary $ cellBoundary (convex cellHPs)
 
 main = do
   hSetBuffering stdout NoBuffering
