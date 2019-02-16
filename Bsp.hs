@@ -129,9 +129,9 @@ pburf segHP Nothing hp = posOfHPInsideHP segHP hp
 pburf segHP (Just php) hp = case (intersectHPs segHP php) of Just p -> insideHP hp p
                                                              Nothing -> posOfHPInsideHP segHP hp
 nburf :: HP -> Maybe HP -> HP -> Bool
-nburf segHP Nothing hp = negOfHPInsideHP segHP hp
+nburf segHP Nothing hp = posOfHPInsideHP segHP (negateHP hp)
 nburf segHP (Just nhp) hp = case intersectHPs segHP nhp of Just p -> insideHP hp p
-                                                           Nothing -> negOfHPInsideHP segHP hp
+                                                           Nothing -> posOfHPInsideHP segHP (negateHP hp)
 
 posOfHPInsideHP :: HP -> HP -> Bool
 posOfHPInsideHP (HP p d) (HP p' d')
@@ -141,7 +141,7 @@ posOfHPInsideHP (HP p d) (HP p' d')
   | otherwise = (d_perp `dot` d') < 0.0
   where d_perp = planePosDir d
 --negOfHPInsideHP (HP p d) ohp = posOfHPInsideHP (HP p (-d)) ohp
-negOfHPInsideHP hp (HP p' d') = posOfHPInsideHP hp (HP p' (-d'))
+--negOfHPInsideHP hp hp' = posOfHPInsideHP hp (negateHP hp')
 
 -- When checking if a segment endpoint is inside a HP, we have to handle the case where there is no
 -- endpoint.  In this case we should use a point-at-infinity, but since I don't quite know how to
