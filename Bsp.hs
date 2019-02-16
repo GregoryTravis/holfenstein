@@ -109,12 +109,9 @@ segsSameSegHP (Seg hp _ _) hp' = hp == hp'
 -- TODO checkSegList: checks that segs are nondecreasing
 -- TODO compactSegList: combines adjacent segs
 
-intersectSegHP seg hp =
-  let res = intersectSegHP' seg hp
-   in res -- eesp (show ("IHP", res, seg, hp)) res
-intersectSegHP' :: Seg -> HP -> Seg
-intersectSegHP' e@(Empty _) hp = e
-intersectSegHP' orig@(Seg segHP php nhp) hp
+intersectSegHP :: Seg -> HP -> Seg
+intersectSegHP e@(Empty _) hp = e
+intersectSegHP orig@(Seg segHP php nhp) hp
   | phpInHP && nhpInHP = orig
   | not phpInHP && nhpInHP = Seg segHP (Just hp) nhp
   | phpInHP && not nhpInHP = Seg segHP php (Just hp)
@@ -125,7 +122,7 @@ intersectSegHP' orig@(Seg segHP php nhp) hp
 intersectionInside :: HP -> Maybe HP -> HP -> Bool
 intersectionInside segHP Nothing hp = posOfHPInsideHP segHP hp
 intersectionInside segHP (Just php) hp = case intersectHPs segHP php of Just p -> insideHP hp p
-                                                           Nothing -> posOfHPInsideHP segHP hp
+                                                                        Nothing -> posOfHPInsideHP segHP hp
 
 posOfHPInsideHP :: HP -> HP -> Bool
 posOfHPInsideHP (HP p d) (HP p' d')
