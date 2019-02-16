@@ -67,7 +67,7 @@ animf t = DiagT (csgToDrawable csg, DiagT (Diag [map segToDrawable (concat inter
   where rot = angToRotation ang
         ang = (angVel * t)
         -- ang = 0 -- (angVel * t)
-        angVel = pi / 8.0
+        angVel = pi / 1.0
 
         csgu = Intersection (convex (square 1.5)) (translateCsg (V2 1.4 0.0) (convex (diamond 1.0)))
         --csgu = convex hps

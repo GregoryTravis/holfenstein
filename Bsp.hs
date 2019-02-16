@@ -124,13 +124,13 @@ intersectSegHP' orig@(Seg segHP php nhp) hp
         --nhpInHP = negOfHPInsideHP segHP hp
 
 pburf :: HP -> Maybe HP -> HP -> Bool
-pburf segHP php hp = case php of Just ihp -> case (intersectHPs segHP ihp) of Just p -> insideHP hp p
-                                                                              Nothing -> posOfHPInsideHP segHP hp
-                                 Nothing -> posOfHPInsideHP segHP hp
+pburf segHP Nothing hp = posOfHPInsideHP segHP hp
+pburf segHP (Just php) hp = case (intersectHPs segHP php) of Just p -> insideHP hp p
+                                                             Nothing -> posOfHPInsideHP segHP hp
 nburf :: HP -> Maybe HP -> HP -> Bool
-nburf segHP nhp hp = case nhp of Just ihp -> case intersectHPs segHP ihp of Just p -> insideHP hp p
-                                                                            Nothing -> negOfHPInsideHP segHP hp
-                                 Nothing -> negOfHPInsideHP segHP hp
+nburf segHP Nothing hp = negOfHPInsideHP segHP hp
+nburf segHP (Just nhp) hp = case intersectHPs segHP nhp of Just p -> insideHP hp p
+                                                           Nothing -> negOfHPInsideHP segHP hp
 
 posOfHPInsideHP :: HP -> HP -> Bool
 posOfHPInsideHP (HP p d) (HP p' d')
