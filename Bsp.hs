@@ -17,6 +17,7 @@ module Bsp
 , planePosDir
 , rotateHP
 , translateHP
+, allCells
 ) where
 
 -- TODO: make some of these constructors private?
@@ -71,6 +72,7 @@ convex :: [HP] -> Csg
 convex [hp] = Prim hp
 convex (hp : hps) = Intersection (Prim hp) (convex hps)
 
+gatherLines :: Csg -> [HP]
 gatherLines (Prim hp) = [hp]
 gatherLines (Intersection a b) = (gatherLines a) ++ (gatherLines b)
 gatherLines (Union a b) = (gatherLines a) ++ (gatherLines b)
@@ -154,3 +156,12 @@ intersectHPs b@(HP p0 d0@(V2 bx by)) c@(HP p1 d1@(V2 cx cy))
         ax = (m - (ay * by)) / bx
         ax' = ((n * by) - (m * cy)) / (- cross)
         ay' = (m - (ax' * bx)) / by
+
+-- Gather all half-planes and generate all possible flip patterns of them, 2^n
+allCells :: Csg -> [[HP]]
+allCells csg = allFlips (gatherLines csg)
+  where allFlips :: [HP] -> [[HP]]
+        allFlips [] = [[]]
+        allFlips (hp : hps) = let flips = allFlips hps in (map (hp :) flips) ++ (map ((negateHP hp) :) flips)
+--csgBoundary :: CSG -> [CSG]
+--csgBoundary csg = 

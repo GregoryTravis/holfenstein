@@ -3,6 +3,7 @@ module Main (main) where
 import Control.Concurrent
 import Control.Monad (unless)
 import Data.Char (ord)
+import Data.Fixed
 import Data.Maybe
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import qualified Data.Set as S
@@ -22,9 +23,10 @@ import Window
 (screenWidth, screenHeight) = (640, 480)
 
 --hpToDrawable :: HP -> DiagT Dline Ddiamond
-hpToDrawable (HP p d) = DiagT (Dline darkGray $ V2 pos neg, Ddiamond darkGray p)
+hpToDrawable (HP p d) = DiagT (Diag [Dline darkGray $ V2 pos neg, Dline darkGray perp], Ddiamond darkGray p)
   where pos = p + (0.7 * (planePosDir d))
         neg = p - (0.7 * (planePosDir d))
+        perp = V2 p (p + 0.2 * d)
 
 segToDrawable (Seg hp@(HP p d) php nhp) = DiagT (Dline white (V2 a b), Ddiamond white p)
   where a = case php of Just hp' -> case intersectHPs hp hp' of Just v -> v
@@ -38,7 +40,7 @@ segToDrawable (Empty (HP p d)) = DiagT (Dline white (V2 a b), Ddiamond white p)
   where a = p - (0.1 * planePosDir d)
         b = p + (0.1 * planePosDir d)
 
-csgToDrawable :: Csg -> Diag (DiagT Dline Ddiamond)
+csgToDrawable :: Csg -> Diag (DiagT (Diag Dline) Ddiamond)
 csgToDrawable csg = Diag $ map hpToDrawable $ gatherLines csg
 
 allCombinations [] = []
@@ -68,7 +70,7 @@ coordAxes scale = Diag [Dline darkGray (V2 x0 x1), Dline darkGray (V2 y0 y1)]
         y0 = V2 0.0 (- (scale / 20.0))
         y1 = V2 0.0 scale
 
-animf t = DiagT (csgToDrawable csg, DiagT (Diag [map segToDrawable (concat inters)], coordAxes 4.0))
+animf_ t = DiagT (csgToDrawable csg, DiagT (Diag [map segToDrawable (concat inters)], coordAxes 4.0))
   where rot = angToRotation ang
         ang = (angVel * t)
         -- ang = 0 -- (angVel * t)
@@ -85,6 +87,32 @@ animf t = DiagT (csgToDrawable csg, DiagT (Diag [map segToDrawable (concat inter
         inters = map (\line -> intersectHPCsg line csguu) (gatherLines csguu)
         --line = radialHP (V2 0.0 0.5)
         --inters = esp $ map (\line -> intersectHPCsg line csg) [line]
+
+-- Pick an element based on time t, where each element is chosen for dur seconds
+cycleThrough :: Double -> Double -> [a] -> a
+--cycleThrough dur t xs = xs !! floor (t `mod'` ((fromIntegral (length xs)) * dur))
+cycleThrough dur t xs = xs !! ((floor (t / dur)) `mod` (length xs))
+
+animf t = DiagT (Diag (map segToDrawable cellCsg), Diag (map hpToDrawable cellHPs)) -- csgToDrawable csg
+  where 
+        rot = angToRotation ang
+        ang = (angVel * t)
+        angVel = pi / 4.0
+
+        --csg = rotateCsgAround rot (V2 (-1.0) 1.0) (Prim (radialHP (V2 (-1.0) 1.0)))
+        csg = convex [radialHP (V2 (-1.0) 1.0),
+                      radialHP (V2 1.0 1.0),
+                      radialHP (V2 1.0 (-1.0)),
+                      radialHP (V2 (-1.0) (-1.0))]
+        --csg = (Prim (radialHP (V2 (-1.0) 1.0)))
+        --ac = eesp (gatherLines csg) esp $ allCells csg
+        ac = allCells csg
+        cellHPs
+          | ac == [] = []
+          -- | otherwise = (ac !! 1)
+          | otherwise = cycleThrough 1.0 t ac
+        cellIntCsg = convex cellHPs
+        cellCsg = concat $ map (\line -> intersectHPCsg line cellIntCsg) (gatherLines cellIntCsg)
 
 main = do
   hSetBuffering stdout NoBuffering
