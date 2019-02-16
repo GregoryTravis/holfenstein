@@ -118,18 +118,20 @@ intersectSegHP' orig@(Seg segHP php nhp) hp
   | not phpInHP && nhpInHP = Seg segHP (Just hp) nhp
   | phpInHP && not nhpInHP = Seg segHP php (Just hp)
   | not phpInHP && not nhpInHP = Empty segHP
-  where --`hphp = intersectHPs segHP hp
-        posInt = case php of Just hp -> intersectHPs segHP hp
-                             Nothing -> Nothing
-        negInt = case nhp of Just hp -> intersectHPs segHP hp
-                             Nothing -> Nothing
-        phpInHP = case posInt of Just v -> insideHP hp v
-                                 Nothing -> containsPositiveInf hp segHP
-        nhpInHP = case negInt of Just v -> insideHP hp v
-                                 Nothing -> containsNegativeInf hp segHP
-        containsPositiveInf hp (HP segP segD) = insideHP hp (segP - (huge * (planePosDir segD)))
-        containsNegativeInf hp (HP segP segD) = insideHP hp (segP + (huge * (planePosDir segD)))
-        huge = 1000.0
+  where phpInHP = insideHP hp (effectiveIntersectionPos orig)
+        nhpInHP = insideHP hp (effectiveIntersectionNeg orig)
+
+-- When checking if a segment endpoint is inside a HP, we have to handle the case where there is no
+-- endpoint.  In this case we should use a point-at-infinity, but since I don't quite know how to
+-- do that, we just use a point far, far along the segment.
+farFarAway = 1000.0
+effectiveIntersectionPos :: Seg -> V2 Double
+effectiveIntersectionPos (Seg hp (Just php) nhp) = case intersectHPs hp php of Just v -> v
+                                                                               Nothing -> effectiveIntersectionPos (Seg hp Nothing nhp)
+effectiveIntersectionPos (Seg (HP p d) Nothing _) = p - farFarAway * (planePosDir d)
+effectiveIntersectionNeg (Seg hp php (Just nhp)) = case intersectHPs hp nhp of Just v -> v
+                                                                               Nothing -> effectiveIntersectionNeg (Seg hp php Nothing)
+effectiveIntersectionNeg (Seg (HP p d) _ Nothing) = p + farFarAway * (planePosDir d)
 
 planePosDir (V2 x y) = signorm (V2 (- y) x)
 
