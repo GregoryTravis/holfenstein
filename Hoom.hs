@@ -91,7 +91,7 @@ animf_ t = DiagT (csgToDrawable csg, DiagT (Diag [map segToDrawable (concat inte
 -- Pick an element based on time t, where each element is chosen for dur seconds
 cycleThrough :: Double -> Double -> [a] -> a
 --cycleThrough dur t xs = xs !! floor (t `mod'` ((fromIntegral (length xs)) * dur))
-cycleThrough dur t xs = xs !! ((floor (t / dur)) `mod` (length xs))
+cycleThrough dur t xs = xs !! (esp ((floor (t / dur)) `mod` (length xs)))
 
 animf t = DiagT (Diag (map (Dline green) shrunk), DiagT (Diag (map segToDrawable sorted), Diag (map hpToDrawable cellHPs))) -- csgToDrawable csg
   where 
@@ -104,19 +104,24 @@ animf t = DiagT (Diag (map (Dline green) shrunk), DiagT (Diag (map segToDrawable
         csg = convex [radialHP (V2 (-1.0) 1.0),
                       radialHP (V2 1.0 1.0),
                       radialHP (V2 1.0 (-1.0)),
-                      radialHP (V2 (-1.0) (-1.0))]
+                      radialHP (V2 (-1.0) (-1.0)),
+                      HP (V2 0.0 0.5) (V2 0.0 (-1.0))]
         --csg = (Prim (radialHP (V2 (-1.0) 1.0)))
         --ac = eesp (gatherLines csg) esp $ allCells csg
         ac = allCells csg
         cellHPs
           | ac == [] = []
-          -- | otherwise = (ac !! 5)
+          -- | otherwise = (ac !! 0)
           | otherwise = cycleThrough 1.0 t ac
+        allCellBoundaries = map verticesToLines $ map shrinkPolygon $ map segsToVertices $
+                              map sortSegs $ filter isProperBoundary $ map cellBoundary $ map convex ac
         cellBoundarySegs = fesp isProperBoundary $ cellBoundary (convex cellHPs)
         sorted = if isProperBoundary cellBoundarySegs
-                   then esp $ sortSegs cellBoundarySegs
-                   else esp cellBoundarySegs
-        shrunk = if isProperBoundary cellBoundarySegs
+                   then sortSegs cellBoundarySegs
+                   else cellBoundarySegs
+        --shrunk = []
+        shrunk = concat allCellBoundaries
+        shrun_ = if isProperBoundary cellBoundarySegs
                    then verticesToLines $ shrinkPolygon $ segsToVertices sorted
                    else []
 

@@ -184,7 +184,10 @@ allCells csg = allFlips (gatherLines csg)
         allFlips (hp : hps) = let flips = allFlips hps in (map (hp :) flips) ++ (map ((negateHP hp) :) flips)
 
 cellBoundary :: Csg -> [Seg]
-cellBoundary csg = concat $ map (\line -> intersectHPCsg line csg) (gatherLines csg)
+cellBoundary csg = filter removeEmpty $ concat $ map (\line -> intersectHPCsg line csg) (gatherLines csg)
+  where removeEmpty (Empty _) = False
+        removeEmpty _ = True
+
 
 isProperBoundary :: [Seg] -> Bool
 isProperBoundary segs =
@@ -194,7 +197,7 @@ isProperBoundary segs =
 implicitCycletoExplicitCycle :: (Show a, Ord a) => [(a, a)] -> [a]
 implicitCycletoExplicitCycle [] = []
 implicitCycletoExplicitCycle steps = chase first first initMap
-  where initMap = esp $ M.fromList steps
+  where initMap = M.fromList steps
         first = case steps of (first, _) : _ -> first
         --next :: a -> M.Map a a -> (a, M.Map a a)
         --next x mp | TR.trace (show ("next", x, mp)) False = undefined
