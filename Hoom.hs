@@ -105,14 +105,17 @@ animf t = DiagT (Diag (map (Dline green) shrunk), DiagT (Diag (map segToDrawable
                       radialHP (V2 1.0 1.0),
                       radialHP (V2 1.0 (-1.0)),
                       radialHP (V2 (-1.0) (-1.0)),
-                      HP (V2 0.0 0.5) (V2 0.0 (-1.0))]
+                      HP (V2 0.0 1.5) (V2 0.0 (-1.0)),
+                      HP (V2 0.0 (-1.5)) (V2 0.0 1.0),
+                      HP (V2 1.5 0.0) (V2 (-1.0) 0.0),
+                      HP (V2 (-1.5) 0.0) (V2 1.0 0.0)]
         --csg = (Prim (radialHP (V2 (-1.0) 1.0)))
         --ac = eesp (gatherLines csg) esp $ allCells csg
         ac = allCells csg
         cellHPs
           | ac == [] = []
           -- | otherwise = (ac !! 0)
-          | otherwise = cycleThrough 1.0 t ac
+          | otherwise = cycleThrough 0.1 t ac
         allCellBoundaries = map verticesToLines $ map shrinkPolygon $ map segsToVertices $
                               map sortSegs $ filter isProperBoundary $ map cellBoundary $ map convex ac
         cellBoundarySegs = fesp isProperBoundary $ cellBoundary (convex cellHPs)
