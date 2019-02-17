@@ -21,10 +21,15 @@ module Bsp
 , cellBoundary
 , isProperBoundary
 , implicitCycletoExplicitCycle 
+, sortSegs
+, verticesToLines
+, shrinkPolygon
+, segsToVertices
 ) where
 
 -- TODO: make some of these constructors private?
 
+import Data.Maybe
 import qualified Data.Map as M
 import qualified Debug.Trace as TR
 import Linear
@@ -35,7 +40,7 @@ import Util
 -- Half plane: defined by a point and a normalized direction.  The line
 -- bounding the half plane is perpendicular to the direction vector, and the
 -- direction vector points into the half plane bounded by the line.
-data HP = HP (V2 Double) (V2 Double) deriving (Eq, Show)
+data HP = HP (V2 Double) (V2 Double) deriving (Eq, Ord, Show)
 
 radialHP v = HP v (-(signorm v))
 originHP v = HP (V2 0.0 0.0) (signorm v)
@@ -57,7 +62,7 @@ negateHP (HP p d) = HP p (-d)
 -- side.  The two intersection points are ordered: if the HP were rotated to be
 -- the area above the X axis, then the first hp would be the one on the right,
 -- and thus the more positive one in the local line space of the base hp.
-data Seg = Seg HP (Maybe HP) (Maybe HP) | Empty HP deriving Show
+data Seg = Seg HP (Maybe HP) (Maybe HP) | Empty HP deriving (Show, Ord, Eq)
 infSeg hp = Seg hp Nothing Nothing
 
 isFinite :: Seg -> Bool
@@ -200,11 +205,17 @@ implicitCycletoExplicitCycle steps = chase first first initMap
                                  then (assert (M.null newMp) [x])
                                  else x : (chase first nextX newMp)
 
-{-
 sortSegs :: [Seg] -> [Seg]
 sortSegs [] = []
 sortSegs segs = implicitCycletoExplicitCycle segCycleImplicit
   where hpToSeg = M.fromList $ map (\seg@(Seg hp _ _) -> (hp, seg)) segs
-        segCycleImplicit = map (\seg@(Seg hp php _) -> (seg, (hpToSeg M.! php))) segs
-        --chase first (Seg hp pnp nhp)
--}
+        segCycleImplicit = map (\seg@(Seg hp (Just php) _) -> (seg, (hpToSeg M.! php))) segs
+
+segsToVertices :: [Seg] -> [V2 Double]
+segsToVertices segs = map pt segs
+  where pt (Seg hp (Just php) _) = fromJust $ intersectHPs hp php
+shrinkPolygon :: [V2 Double] -> [V2 Double]
+shrinkPolygon pts = map (\pt -> pt + ((center - pt) * 0.05)) pts
+  where center = (sum pts) / (fromIntegral (length pts))
+verticesToLines :: [V2 Double] -> [V2 (V2 Double)]
+verticesToLines pts = map (\(a, b) -> V2 a b) (zip pts ((tail pts) ++ [head pts]))

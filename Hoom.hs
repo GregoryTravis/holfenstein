@@ -93,7 +93,7 @@ cycleThrough :: Double -> Double -> [a] -> a
 --cycleThrough dur t xs = xs !! floor (t `mod'` ((fromIntegral (length xs)) * dur))
 cycleThrough dur t xs = xs !! ((floor (t / dur)) `mod` (length xs))
 
-animf t = DiagT (Diag (map segToDrawable cellCsg), Diag (map hpToDrawable cellHPs)) -- csgToDrawable csg
+animf t = DiagT (Diag (map (Dline green) shrunk), DiagT (Diag (map segToDrawable sorted), Diag (map hpToDrawable cellHPs))) -- csgToDrawable csg
   where 
         rot = angToRotation ang
         ang = (angVel * t)
@@ -112,7 +112,13 @@ animf t = DiagT (Diag (map segToDrawable cellCsg), Diag (map hpToDrawable cellHP
           | ac == [] = []
           -- | otherwise = (ac !! 5)
           | otherwise = cycleThrough 1.0 t ac
-        cellCsg = fesp isProperBoundary $ cellBoundary (convex cellHPs)
+        cellBoundarySegs = fesp isProperBoundary $ cellBoundary (convex cellHPs)
+        sorted = if isProperBoundary cellBoundarySegs
+                   then esp $ sortSegs cellBoundarySegs
+                   else esp cellBoundarySegs
+        shrunk = if isProperBoundary cellBoundarySegs
+                   then verticesToLines $ shrinkPolygon $ segsToVertices sorted
+                   else []
 
 main = do
   --msp $ implicitCycletoExplicitCycle [(0, 1), (2, 0), (1, 2)]
