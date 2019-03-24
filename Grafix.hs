@@ -4,6 +4,7 @@ module Grafix
 , drawPoint
 , fastestTextureVStrip
 , floorAndCeiling
+, runShader
 ) where
 
 import Control.Monad (when, unless)
@@ -34,6 +35,13 @@ assertDrawPoint w v c ptr pitch = do
 safeDrawPoint w v c ptr pitch = do
   when (inScreenBounds w v) $ pokeElemOff ptr (toOffset v pitch) c
 drawPoint = if doSafeDrawPoint then safeDrawPoint else assertDrawPoint
+
+runShader :: Window -> (Int -> Int -> Int -> Int -> Color) -> IO ()
+runShader window shader = withFramebuffer window renderPoints
+  where (w, h) = getDimensions window
+        allPoints = [(x, y) | x <- [0..w-1], y <- [0..h-1]]
+        renderPoint ptr pitch (x, y) = drawPoint window (V2 x y) (packColor (shader x y w h)) ptr pitch
+        renderPoints ptr pitch = mapM_ (renderPoint ptr pitch) allPoints
 
 -- TODO this really should take doubles
 -- Can get rid of these three params, but nicely?
