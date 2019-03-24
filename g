@@ -1,5 +1,6 @@
 #(stack build hoom && stack exec hoom) 2>&1 | tee out
-(stack build hoom:exe:hoom && stack exec hoom:exe:hoom) 2>&1 | tee out
+#(stack build hoom:exe:hoom && stack exec hoom) 2>&1 | tee out
+(stack build hoom:exe:holfenstein && stack exec holfenstein) 2>&1 | tee out
 exit
 
 rm -f Holfenstein.prof
