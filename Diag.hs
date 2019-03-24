@@ -13,7 +13,7 @@ import Data.Word (Word32)
 import Foreign.Ptr
 import Linear
 
-import Gfx
+import Grafix
 import Img
 import Line
 import Math

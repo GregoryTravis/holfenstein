@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Gfx
+module Grafix
 ( drawLine
 , drawPoint
 , fastestTextureVStrip

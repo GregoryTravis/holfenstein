@@ -30,7 +30,7 @@ import System.CPUTime (getCPUTime)
 import System.Exit
 import System.IO
 
-import Gfx
+import Grafix
 import FPS
 import Img
 import Line
