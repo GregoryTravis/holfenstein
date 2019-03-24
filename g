@@ -1,3 +1,6 @@
+(stack build hoom && stack exec hoom) 2>&1 | tee out
+exit
+
 rm -f Holfenstein.prof
 
 #OPTFLAGS=-O3

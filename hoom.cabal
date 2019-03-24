@@ -1,0 +1,30 @@
+name:                hoom
+version:             0.1.0.0
+-- synopsis:
+-- description:
+--homepage:            https://github.com/githubuser/loopo#readme
+license:             BSD3
+--license-file:        LICENSE
+author:              Author name here
+maintainer:          example@example.com
+copyright:           2019 Author name here
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.10
+--extra-source-files:  README.md
+
+executable hed
+  --hs-source-dirs:      src
+  main-is:             Hoom.hs
+  --other-modules:       Document, FrameBuffer, Util
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5,
+                       containers,
+                       JuicyPixels,
+                       linear,
+                       pretty-simple,
+                       sdl2,
+                       text,
+                       time,
+                       unix,
+                       vector
