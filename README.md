@@ -6,7 +6,7 @@ This is one of my first Haskell projects; I first wrote all of the renderer in H
 Even the Haskell is pretty low-level in certain areas, just raw pointer reads and writes, so even in Haskell I got some of those classic renderer errors like:
 
 * segmentation fault
-* rendering is striped and way to tall
+* rendering is striped and way too tall
 * etc.
 
 I use the following high-quality dataset for the world model:
