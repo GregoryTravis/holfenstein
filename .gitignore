@@ -10,3 +10,4 @@ notes.txt
 log.txt
 out
 .stack-work
+stack.yaml.lock
