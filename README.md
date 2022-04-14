@@ -7,7 +7,9 @@ Holfenstein 3D: Wolfenstein 3D in Haskell + C
 
 This is one of my first Haskell projects; I first wrote all of the renderer in Haskell, then translated the hot spots to C.
 
-Even the Haskell is pretty low-level in certain areas, just raw pointer reads and writes, so even in Haskell I got some of those classic renderer errors like:
+Holfenstein uses SDL for basic window and keyboard interaction, but no graphics
+primitives. All graphics are rendered directly to a framebuffer from both
+Haskell and C. So even in Haskell I got some of those classic renderer errors like:
 
 * segmentation fault
 * rendering is striped and way too tall
