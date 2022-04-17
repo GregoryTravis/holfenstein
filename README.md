@@ -1,4 +1,4 @@
-Holfenstein 3D: Wolfenstein 3D in Haskell + C
+Holfenstein: Wolfenstein-3D-like renderer in Haskell + C
 ======
 
 <p align="center">
